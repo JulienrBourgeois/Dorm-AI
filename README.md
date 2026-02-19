@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Team reference docs
+
+New to the repo? Check **[docs/](docs/README.md)** for setup and workflow guides:
+
+- **[Node & npm](docs/node-and-npm.md)** — Install Node/npm and run the app
+- **[Git basics](docs/git-basics.md)** — Cloning, branching, committing, pushing
+- **[Cursor basics](docs/cursor-basics.md)** — Using Cursor IDE on this project
+- **[Next.js basics](docs/nextjs-basics.md)** — App Router, routing, and where to put things
+
 ## Getting Started
 
 First, run the development server:
