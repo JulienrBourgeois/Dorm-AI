@@ -10,3 +10,9 @@ export {
 export { updateDocument } from "./update";
 export { deleteDocument } from "./delete";
 export { subscribeDocument, subscribeCollection } from "./listeners";
+export { COLLECTIONS } from "./collections";
+export {
+  timestampToDate,
+  dateToTimestamp,
+  withDates,
+} from "./convert";

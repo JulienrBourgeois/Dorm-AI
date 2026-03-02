@@ -12,5 +12,6 @@ Use these guides for setup, tooling, and workflow on this project.
 | [Firebase Auth](firebase-auth.md) | app/lib firebase auth: email/password, phone, reset, verification; env and usage |
 | [Firestore](firestore.md) | app/lib firestore: create, read, update, delete, listeners; env and usage |
 | [Firebase Storage](firebase-storage.md) | app/lib storage: upload, download URLs, delete, list; bucket and usage |
+| [Data model](data-model.md) | Dorm AI entities, Firestore collections, types, and date conversion |
 
-Start with **Node & npm** if you’re new to the repo, then **Git basics** for version control. Use **Next.js basics** when working in the codebase; use **Cursor basics** if you use Cursor. Use **Environment variables** when configuring secrets and config locally or on Vercel. Use **Firebase Auth**, **Firestore**, and **Firebase Storage** when adding client-side auth, database, or file storage.
+Start with **Node & npm** if you’re new to the repo, then **Git basics** for version control. Use **Next.js basics** when working in the codebase; use **Cursor basics** if you use Cursor. Use **Environment variables** when configuring secrets and config locally or on Vercel. Use **Firebase Auth**, **Firestore**, and **Firebase Storage** when adding client-side auth, database, or file storage. Use **Data model** for entity types and Firestore collection names.
