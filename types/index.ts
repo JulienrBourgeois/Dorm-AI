@@ -1,1 +1,20 @@
 // Shared TypeScript types (User, Room, ApiResponse, etc.)
+export type {
+  User,
+  University,
+  Membership,
+  Building,
+  Room,
+  Inspection,
+  InspectionItem,
+  Media,
+  Charge,
+  WithId,
+  MembershipRole,
+  MembershipStatus,
+  InspectionType,
+  InspectionStatus,
+  InspectionItemResponse,
+  MediaType,
+  ChargeStatus,
+} from "./dorm";
