@@ -41,6 +41,29 @@ API_SECRET_KEY=your-secret-key
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
 
+### Firebase (client)
+
+The Firebase Auth layer in `app/lib/firebase` needs these **public** variables (see [Firebase Auth](firebase-auth.md) for usage):
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+### Sandbox vs production (Firebase)
+
+The app uses **environment variables** to choose the Storage bucket and sandbox vs production mode. Logic lives in `app/lib/env.ts`.
+
+| Variable | Purpose |
+|---------|---------|
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Prod Storage bucket (e.g. `dorm-ai.firebasestorage.app`). Used when not in sandbox. |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_SANDBOX` | Sandbox Storage bucket (e.g. `dorm-ai-sandbox`). Used when `useSandbox` is true. |
+| `NEXT_PUBLIC_FIREBASE_USE_SANDBOX` | Optional override: `"true"` or `"false"`. If set, overrides the automatic heuristic. Leave unset to use heuristic. |
+
+**Heuristic when `NEXT_PUBLIC_FIREBASE_USE_SANDBOX` is unset:** sandbox mode is true for **Vercel Preview** (`NEXT_PUBLIC_VERCEL_ENV` or `VERCEL_ENV === 'preview'`) and **local development** (`NODE_ENV === 'development'`). The active bucket is returned by `getStorageBucketName()` in `app/lib/env.ts`. For debugging, call `getEnvironmentDebug()` or `logEnvironmentDebug()` (no secrets logged).
+
 ### Using variables in code
 
 - **Server Components / Route Handlers / Server Actions:** Use `process.env.MY_VAR` or `process.env.NEXT_PUBLIC_MY_VAR`. Both work; only `NEXT_PUBLIC_*` is also available on the client.
