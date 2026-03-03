@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./styles/colors.css";
+@import "./styles/animations/slide-up.css";
 
 :root {
   --background: #ffffff;

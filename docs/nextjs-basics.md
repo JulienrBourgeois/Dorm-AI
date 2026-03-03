@@ -54,7 +54,7 @@ Use `<a>` only for external URLs. For internal routes, prefer `Link`.
 | `components/` | Reusable UI components (optional; some projects keep them under `app/` or `lib/`). |
 | `public/` | Static files: images, favicon. Reference as `/filename` (e.g. `/logo.png`). |
 
-This repo uses **Tailwind** for styling; class names go on JSX elements. Global styles and theme variables live in `app/globals.css`.
+This repo uses **Tailwind** for styling; class names go on JSX elements. Global styles and theme variables live in `app/globals.css`, which imports `app/styles/` (colors, animations). See [Styling: colors and animations](styling-colors.md).
 
 ## Running the app
 

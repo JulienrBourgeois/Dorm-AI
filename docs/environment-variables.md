@@ -48,21 +48,23 @@ The Firebase Auth layer in `app/lib/firebase` needs these **public** variables (
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
 
+Storage bucket names are fixed in code: `dorm-ai.firebasestorage.app` (prod) and `dorm-ai-sandbox` (sandbox); see `STORAGE_BUCKET_PROD` and `STORAGE_BUCKET_SANDBOX` in `app/lib/env.ts`.
+
 ### Sandbox vs production (Firebase)
 
-The app uses **environment variables** to choose the Storage bucket and sandbox vs production mode. Logic lives in `app/lib/env.ts`.
+The app uses **environment code** in `app/lib/env.ts` to decide sandbox vs production. When **sandbox** is active:
+
+- **Firestore** uses a separate database with ID `sandbox` (production uses the default database). See [Firestore](firestore.md).
+- **Storage** uses fixed bucket names: `dorm-ai-sandbox` (sandbox) and `dorm-ai.firebasestorage.app` (prod); see `STORAGE_BUCKET_SANDBOX` and `STORAGE_BUCKET_PROD` in `app/lib/env.ts`. The active bucket is returned by `getStorageBucketName()`.
 
 | Variable | Purpose |
 |---------|---------|
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Prod Storage bucket (e.g. `dorm-ai.firebasestorage.app`). Used when not in sandbox. |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_SANDBOX` | Sandbox Storage bucket (e.g. `dorm-ai-sandbox`). Used when `useSandbox` is true. |
 | `NEXT_PUBLIC_FIREBASE_USE_SANDBOX` | Optional override: `"true"` or `"false"`. If set, overrides the automatic heuristic. Leave unset to use heuristic. |
 
-**Heuristic when `NEXT_PUBLIC_FIREBASE_USE_SANDBOX` is unset:** sandbox mode is true for **Vercel Preview** (`NEXT_PUBLIC_VERCEL_ENV` or `VERCEL_ENV === 'preview'`) and **local development** (`NODE_ENV === 'development'`). The active bucket is returned by `getStorageBucketName()` in `app/lib/env.ts`. For debugging, call `getEnvironmentDebug()` or `logEnvironmentDebug()` (no secrets logged).
+**Heuristic when `NEXT_PUBLIC_FIREBASE_USE_SANDBOX` is unset:** sandbox mode is true for **Vercel Preview** (`NEXT_PUBLIC_VERCEL_ENV` or `VERCEL_ENV === 'preview'`) and **local development** (`NODE_ENV === 'development'`). For debugging, call `getEnvironmentDebug()` or `logEnvironmentDebug()` (no secrets logged); they include `storageBucketName` and `firestoreDatabaseId`.
 
 ### Using variables in code
 

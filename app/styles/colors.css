@@ -1,0 +1,28 @@
+/**
+ * Brand color variables
+ * Single source of truth for primary/secondary/accent palette.
+ * Use via Tailwind (bg-primary, text-accent) or CSS (var(--primary)).
+ */
+
+:root {
+  /* Primary: Deep Navy – institutional, security, multi-campus, university-level SaaS */
+  --primary: #0f172a;
+  --primary-alt: #111827;
+
+  /* Secondary: Cool Slate Gray – pairs with primary and white/light grays */
+  --secondary: #334155;
+  --secondary-alt: #475569;
+
+  /* Accent: Sky Blue – interactive highlights, links, focus states */
+  --accent: #0ea5e9;
+  --accent-alt: #0284c7;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-alt: var(--primary-alt);
+  --color-secondary: var(--secondary);
+  --color-secondary-alt: var(--secondary-alt);
+  --color-accent: var(--accent);
+  --color-accent-alt: var(--accent-alt);
+}

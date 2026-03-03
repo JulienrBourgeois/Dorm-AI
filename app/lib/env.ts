@@ -31,6 +31,20 @@ export const useSandbox =
 /**
  * Safe environment summary for server-side logging (no secrets).
  */
+/** Firestore database ID for sandbox; production uses the default database. */
+export const FIRESTORE_DATABASE_ID_SANDBOX = "sandbox";
+
+/** Storage bucket name when useSandbox is true. */
+export const STORAGE_BUCKET_SANDBOX = "dorm-ai-sandbox";
+
+/** Storage bucket name for production. */
+export const STORAGE_BUCKET_PROD = "dorm-ai.firebasestorage.app";
+
+/** Return the Firestore database ID for the current environment (sandbox or default). */
+export function getFirestoreDatabaseId(): string {
+  return useSandbox ? FIRESTORE_DATABASE_ID_SANDBOX : "(default)";
+}
+
 export function getEnvironmentDebug(): {
   NODE_ENV: string;
   VERCEL_ENV: string | undefined;
@@ -40,6 +54,7 @@ export function getEnvironmentDebug(): {
   useSandbox: boolean;
   useFirestoreSandbox: boolean;
   storageBucketName: string;
+  firestoreDatabaseId: string;
   hasFirebaseProjectId: boolean;
   hasFirebasePrivateKey: boolean;
 } {
@@ -56,6 +71,7 @@ export function getEnvironmentDebug(): {
     useSandbox,
     useFirestoreSandbox,
     storageBucketName: getStorageBucketName(),
+    firestoreDatabaseId: getFirestoreDatabaseId(),
     hasFirebaseProjectId: hasProcess && !!process.env.FIREBASE_PROJECT_ID,
     hasFirebasePrivateKey:
       hasProcess && !!process.env.FIREBASE_ADMIN_PRIVATE_KEY,
@@ -83,18 +99,7 @@ export const useFirestoreSandbox =
 
 /** Return the Storage bucket name for the current environment (sandbox or prod). */
 export function getStorageBucketName(): string {
-  if (useSandbox) {
-    return (
-      (hasProcess
-        ? process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_SANDBOX
-        : undefined) ?? "dorm-ai-sandbox"
-    );
-  }
-  return (
-    (hasProcess
-      ? process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-      : undefined) ?? "dorm-ai.firebasestorage.app"
-  );
+  return useSandbox ? STORAGE_BUCKET_SANDBOX : STORAGE_BUCKET_PROD;
 }
 
 export function getBaseUrl(): string {
