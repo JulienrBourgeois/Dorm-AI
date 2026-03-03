@@ -11,14 +11,14 @@ For advanced use (e.g. building `Query` objects), import `db` from `@/app/lib/fi
 
 ## Environment and sandbox
 
-Firebase config is the same as for Auth; see [Environment variables](environment-variables.md). The app also exposes:
+Firebase config is the same as for Auth; see [Environment variables](environment-variables.md).
 
-- **`useFirestoreSandbox`** and **`getFirestoreViewMode()`** / **`setFirestoreViewMode()`** in `app/lib/env.ts`.
+When the environment is **sandbox** (local development or Vercel Preview, or when `NEXT_PUBLIC_FIREBASE_USE_SANDBOX=true`), the app uses:
 
-The current scaffold uses a **single Firestore instance** (`db`) from the default app. Later you can wire sandbox/prod by:
+- **Firestore:** a separate Firestore database with ID **`sandbox`** (see [Firestore multiple databases](https://firebase.google.com/docs/firestore/manage-databases)). Production uses the default database. The database ID is chosen by `getFirestoreDatabaseId()` in `app/lib/env.ts`; `db` in `app/lib/firebase/app.ts` is initialized with that ID.
+- **Storage:** fixed bucket names `dorm-ai-sandbox` (sandbox) and `dorm-ai.firebasestorage.app` (prod) in `app/lib/env.ts`; `getStorageBucketName()` returns the active one.
 
-- Using a second Firebase app (different project ID) when `useFirestoreSandbox` is true, or
-- Calling `connectFirestoreEmulator(db, host, port)` in development.
+The app also exposes **`useFirestoreSandbox`** and **`getFirestoreViewMode()`** / **`setFirestoreViewMode()`** in `app/lib/env.ts` for UI that needs to show or toggle sandbox vs production view. You must create the `sandbox` database in the Firebase Console (or gcloud) before using it; the default database is used for production.
 
 ## Firestore modules
 

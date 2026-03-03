@@ -52,7 +52,7 @@ flowchart LR
 |----------|-------------|
 | `layout.tsx` | Root layout (HTML shell, fonts, global wrappers). Wraps every page. |
 | `page.tsx` | The page component for that route (e.g. `app/page.tsx` = `/`). |
-| `globals.css` | Global styles, Tailwind, CSS variables. |
+| `globals.css` | Global styles, Tailwind, CSS variables; imports `app/styles/` (colors, animations). |
 | `loading.tsx` | Optional loading UI while the page or segment is loading. |
 | `error.tsx` | Optional error boundary for that segment. |
 | `not-found.tsx` | Optional custom 404 for that segment. |

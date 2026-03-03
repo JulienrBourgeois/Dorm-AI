@@ -1,5 +1,6 @@
 /**
  * Send password reset email.
+ * Errors are not handled here; callers should use getAuthErrorMessage + toast.
  * @see https://firebase.google.com/docs/auth/web/manage-users#send_a_password_reset_email
  */
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -14,9 +15,8 @@ import { auth } from "../app";
 export function sendPasswordReset(
   email: string,
   actionCodeSettings?: ActionCodeSettings
-) {
-  if (actionCodeSettings) {
-    return sendPasswordResetEmail(auth, email, actionCodeSettings);
-  }
-  return sendPasswordResetEmail(auth, email);
+): Promise<void> {
+  return actionCodeSettings
+    ? sendPasswordResetEmail(auth, email, actionCodeSettings)
+    : sendPasswordResetEmail(auth, email);
 }

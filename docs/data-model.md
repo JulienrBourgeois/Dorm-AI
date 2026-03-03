@@ -12,6 +12,8 @@ Unified TypeScript types and Firestore collection layout for Dorm AI entities. U
 
 ## Firestore collection mapping
 
+Collections live in the Firestore database selected by environment: **sandbox** database (ID `sandbox`) when `useSandbox` is true, or the **default** database in production. See [Firestore](firestore.md) and [Environment variables](environment-variables.md).
+
 | Entity | Collection | Main FKs |
 |--------|------------|----------|
 | User | `users` | — |

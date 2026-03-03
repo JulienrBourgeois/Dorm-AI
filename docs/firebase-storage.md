@@ -11,7 +11,7 @@ For advanced use (e.g. custom refs), import `storage` from `@/app/lib/firebase/a
 
 ## Bucket
 
-Storage uses the bucket from the Firebase app config, which comes from **`getStorageBucketName()`** in [app/lib/env.ts](app/lib/env.ts). Sandbox vs prod is driven by `useSandbox` and the env vars described in [Environment variables](environment-variables.md) (e.g. `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_SANDBOX`).
+Storage uses the bucket from the Firebase app config, which comes from **`getStorageBucketName()`** in [app/lib/env.ts](app/lib/env.ts). Bucket names are fixed in code: `STORAGE_BUCKET_SANDBOX` (`dorm-ai-sandbox`) and `STORAGE_BUCKET_PROD` (`dorm-ai.firebasestorage.app`). Sandbox vs prod is driven by `useSandbox`; see [Environment variables](environment-variables.md).
 
 ## Storage modules
 
