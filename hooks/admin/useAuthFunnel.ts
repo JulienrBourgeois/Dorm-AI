@@ -21,6 +21,7 @@ import {
   clearAuthCookie,
   getAuthErrorMessage,
 } from "@/lib/admin/adminAuth";
+import { phoneToE164 } from "@/lib/admin/phoneFormat";
 import type { AuthStep, AuthFunnelState, AuthFunnelActions } from "@/types/admin/authFunnel";
 
 const STEP_FROM_URL: AuthStep[] = [
@@ -54,7 +55,11 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const [email, setEmail] = useState(() => (stepParam === "forgot-password" || stepParam === "email-login" ? emailParam : ""));
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phoneDigits, setPhoneDigits] = useState("");
+  const setPhone = useCallback((value: string) => {
+    setPhoneDigits(value.replace(/\D/g, "").slice(0, 11));
+  }, []);
+  const phone = phoneDigits;
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -161,14 +166,15 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
 
   async function handleSendPhoneCode(e: FormEvent) {
     e.preventDefault();
-    if (!phone.trim()) return toast.error("Please enter your phone number.");
+    if (phone.length < 10) return toast.error("Please enter a valid US phone number (10 digits).");
+    const e164 = phoneToE164(phone);
     setLoading(true);
     try {
       if (!recaptchaInitialized.current && recaptchaContainerRef.current) {
         createRecaptchaVerifier(recaptchaContainerRef.current, { size: "invisible" });
         recaptchaInitialized.current = true;
       }
-      const confirmation = await sendPhoneCode(phone);
+      const confirmation = await sendPhoneCode(e164);
       confirmationRef.current = confirmation;
       setResendCooldown(60);
       goTo("phone-otp");
