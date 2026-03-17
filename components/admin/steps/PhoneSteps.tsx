@@ -2,6 +2,7 @@
 
 import type { RefObject } from "react";
 import { Shell, AnimateStep, BackButton, AuthInput, PrimaryButton } from "@/components/admin/ui";
+import { formatPhoneDisplay } from "@/lib/admin/phoneFormat";
 import type { AuthFunnelState, AuthFunnelActions } from "@/types/admin/authFunnel";
 
 type PhoneEntryProps = Pick<AuthFunnelState, "phone" | "loading" | "mode"> &
@@ -15,7 +16,7 @@ export function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSen
         <h1 className="self-start text-3xl font-bold tracking-tight">Continue with phone:</h1>
         <p className="self-start text-sm text-zinc-500 dark:text-zinc-400">We&apos;ll text a verification code to your number.</p>
         <form onSubmit={handleSendPhoneCode} className="flex w-full flex-col gap-5">
-          <AuthInput id="phone-number" type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={setPhone} autoComplete="tel" autoFocus disabled={loading} />
+          <AuthInput id="phone-number" type="tel" placeholder="+1 (555) 000-0000" value={formatPhoneDisplay(phone)} onChange={setPhone} autoComplete="tel" autoFocus disabled={loading} />
           <PrimaryButton type="submit" disabled={loading}>{loading ? "Sending code…" : "Send code"}</PrimaryButton>
         </form>
         <div ref={recaptchaContainerRef} />
@@ -34,7 +35,7 @@ export function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo
         <BackButton onClick={() => goTo("phone-entry")} />
         <h1 className="self-start text-3xl font-bold tracking-tight">Enter verification code</h1>
         <p className="self-start text-sm text-zinc-500 dark:text-zinc-400">
-          We sent a 6-digit code to <span className="font-medium text-foreground">{phone}</span>
+          We sent a 6-digit code to <span className="font-medium text-foreground">{formatPhoneDisplay(phone)}</span>
         </p>
         <form onSubmit={handleVerifyOtp} className="flex w-full flex-col gap-5">
           <AuthInput id="otp-code" type="text" placeholder="000000" value={otp} onChange={(v) => setOtp(v.replace(/\D/g, "").slice(0, 6))} autoComplete="one-time-code" autoFocus disabled={loading} />

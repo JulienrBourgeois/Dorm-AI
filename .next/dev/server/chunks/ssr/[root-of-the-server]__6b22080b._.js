@@ -1785,7 +1785,7 @@ function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneC
                     onClick: ()=>goTo(mode === "login" ? "login-chooser" : "welcome")
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 14,
+                    lineNumber: 15,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
@@ -1793,7 +1793,7 @@ function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneC
                     children: "Continue with phone:"
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 15,
+                    lineNumber: 16,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1801,7 +1801,7 @@ function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneC
                     children: "We'll text a verification code to your number."
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 16,
+                    lineNumber: 17,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -1819,7 +1819,7 @@ function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneC
                             disabled: loading
                         }, void 0, false, {
                             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                            lineNumber: 18,
+                            lineNumber: 19,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$admin$2f$ui$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PrimaryButton"], {
@@ -1828,31 +1828,31 @@ function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneC
                             children: loading ? "Sending code…" : "Send code"
                         }, void 0, false, {
                             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                            lineNumber: 19,
+                            lineNumber: 20,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 17,
+                    lineNumber: 18,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     ref: recaptchaContainerRef
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 21,
+                    lineNumber: 22,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-            lineNumber: 13,
+            lineNumber: 14,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-        lineNumber: 12,
+        lineNumber: 13,
         columnNumber: 5
     }, this);
 }
@@ -1865,7 +1865,7 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                     onClick: ()=>goTo("phone-entry")
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 34,
+                    lineNumber: 35,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
@@ -1873,7 +1873,7 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                     children: "Enter verification code"
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 35,
+                    lineNumber: 36,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1885,13 +1885,13 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                             children: phone
                         }, void 0, false, {
                             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                            lineNumber: 37,
+                            lineNumber: 38,
                             columnNumber: 37
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 36,
+                    lineNumber: 37,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -1909,7 +1909,7 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                             disabled: loading
                         }, void 0, false, {
                             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                            lineNumber: 40,
+                            lineNumber: 41,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$admin$2f$ui$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PrimaryButton"], {
@@ -1918,13 +1918,13 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                             children: loading ? "Verifying…" : "Verify"
                         }, void 0, false, {
                             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                            lineNumber: 41,
+                            lineNumber: 42,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 39,
+                    lineNumber: 40,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1935,25 +1935,25 @@ function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handl
                     children: resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 43,
+                    lineNumber: 44,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     ref: recaptchaContainerRef
                 }, void 0, false, {
                     fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-                    lineNumber: 46,
+                    lineNumber: 47,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-            lineNumber: 33,
+            lineNumber: 34,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/admin/steps/PhoneSteps.tsx",
-        lineNumber: 32,
+        lineNumber: 33,
         columnNumber: 5
     }, this);
 }
