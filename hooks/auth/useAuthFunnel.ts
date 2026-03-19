@@ -41,6 +41,12 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Optional post-login destination (used by role portals like inspector).
+  // Only allow local paths to avoid open redirects.
+  const redirectToParam = searchParams.get("next") ?? searchParams.get("redirect");
+  const redirectTo =
+    redirectToParam && redirectToParam.startsWith("/") ? redirectToParam : null;
+
   const stepParam = searchParams.get("step");
   const emailParam = searchParams.get("email") ?? "";
 
@@ -92,12 +98,12 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         const { created } = await upsertUserDoc(user);
         setCheckingMessage(created ? "Creating your account…" : "Signing you in…");
         setStep("checking-access");
-        router.push("/home");
+        router.push(redirectTo ?? "/home");
       } catch (err) {
         toast.error(getAuthErrorMessage(err));
       }
     },
-    [router]
+    [router, redirectTo]
   );
 
   function goTo(next: AuthStep) {
