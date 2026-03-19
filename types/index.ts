@@ -1,6 +1,7 @@
 // Shared TypeScript types (User, Room, ApiResponse, etc.)
 export type {
   User,
+  UserRole,
   University,
   Membership,
   Building,

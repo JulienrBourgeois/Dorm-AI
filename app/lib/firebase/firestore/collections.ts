@@ -5,6 +5,7 @@ export const COLLECTIONS = {
   users: "users",
   universities: "universities",
   memberships: "memberships",
+  inviteCodes: "inviteCodes",
   buildings: "buildings",
   rooms: "rooms",
   inspections: "inspections",

@@ -7,10 +7,6 @@ const ERROR_MAP: Record<string, string> = {
   "auth/email-already-in-use": "An account with this email already exists.",
   "auth/weak-password": "Password must be at least 6 characters.",
   "auth/too-many-requests": "Too many attempts. Please try again later.",
-  "auth/invalid-phone-number": "Please enter a valid phone number (e.g. +1234567890).",
-  "auth/invalid-verification-code": "Invalid verification code. Please try again.",
-  "auth/code-expired": "Verification code expired. Please request a new one.",
-  "auth/missing-phone-number": "Please enter a phone number.",
 };
 
 /** Map Firebase error codes to user-friendly messages. */

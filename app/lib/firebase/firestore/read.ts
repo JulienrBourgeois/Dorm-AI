@@ -2,8 +2,8 @@
  * One-time read of Firestore documents or collections.
  * @see https://firebase.google.com/docs/firestore/query-data/get-data
  */
-import type { DocumentSnapshot } from "firebase/firestore";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import type { DocumentSnapshot, QueryConstraint } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "../app";
 
 /**
@@ -41,4 +41,14 @@ export async function getDocumentData<T = unknown>(
  */
 export function getCollection(collectionPath: string) {
   return getDocs(collection(db, collectionPath));
+}
+
+/**
+ * Query a collection with constraints. Returns Firestore QuerySnapshot.
+ */
+export function queryCollection(
+  collectionPath: string,
+  ...constraints: QueryConstraint[]
+) {
+  return getDocs(query(collection(db, collectionPath), ...constraints));
 }
