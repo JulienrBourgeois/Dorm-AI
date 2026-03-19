@@ -24,6 +24,16 @@ const FEATURES = [
   "Real-time transparency on damages and charges",
   "Built for multi-campus scale from day one",
 ];
+const LOGOS = [
+  {
+    name: "University of California, Berkeley",
+    image: "/images/logos/berkeley.png",
+  },
+  {
+    name: "University of California, Los Angeles",
+    image: "/images/logos/ucla.png",
+  },
+];
 
 export default function LandingPage() {
   return (
