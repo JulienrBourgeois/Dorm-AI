@@ -47,6 +47,12 @@ build/Release
 # Dependency directories
 node_modules/
 
+# Next.js build and cache (Turbopack, etc.)
+.next/
+
+# macOS
+.DS_Store
+
 # Optional npm cache directory
 .npm
 
