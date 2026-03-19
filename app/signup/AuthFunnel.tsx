@@ -1,13 +1,13 @@
 "use client";
 
-import { useAuthFunnel } from "@/hooks/admin/useAuthFunnel";
-import { WelcomeStep, LoginChooserStep } from "@/components/admin/steps/WelcomeSteps";
-import { EmailSignUpStep, EmailLoginStep } from "@/components/admin/steps/EmailSteps";
-import { PhoneEntryStep, PhoneOtpStep } from "@/components/admin/steps/PhoneSteps";
-import { ForgotPasswordStep, ResetSentStep } from "@/components/admin/steps/ResetSteps";
-import { CheckingAccessStep, AccessDeniedStep } from "@/components/admin/steps/StatusSteps";
+import { useAuthFunnel } from "@/hooks/auth/useAuthFunnel";
+import { WelcomeStep, LoginChooserStep } from "@/components/auth/steps/WelcomeSteps";
+import { EmailSignUpStep, EmailLoginStep } from "@/components/auth/steps/EmailSteps";
+import { PhoneEntryStep, PhoneOtpStep } from "@/components/auth/steps/PhoneSteps";
+import { ForgotPasswordStep, ResetSentStep } from "@/components/auth/steps/ResetSteps";
+import { LoadingStep } from "@/components/auth/steps/StatusSteps";
 
-export function AdminAuthFunnel() {
+export function AuthFunnel() {
   const f = useAuthFunnel();
 
   switch (f.step) {
@@ -71,10 +71,7 @@ export function AdminAuthFunnel() {
       return <ResetSentStep email={f.email} goTo={f.goTo} />;
 
     case "checking-access":
-      return <CheckingAccessStep message={f.checkingMessage} />;
-
-    case "access-denied":
-      return <AccessDeniedStep handleSignOutAndReset={f.handleSignOutAndReset} />;
+      return <LoadingStep message={f.checkingMessage} />;
 
     default:
       return null;

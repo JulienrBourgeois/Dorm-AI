@@ -45,8 +45,8 @@ export function ShieldXIcon({ className }: { className?: string }) {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-white px-5 py-12 dark:bg-black">
-      <div className="flex w-full max-w-[400px] flex-col items-center gap-6">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-white px-5 py-10 md:bg-zinc-50 md:px-6 md:py-12 dark:bg-black dark:md:bg-zinc-950">
+      <div className="flex w-full max-w-[440px] flex-col items-center gap-7 md:rounded-3xl md:border md:border-zinc-200 md:bg-white md:px-10 md:py-12 md:shadow-xl md:shadow-black/[0.03] dark:md:border-zinc-700/50 dark:md:bg-zinc-900">
         {children}
       </div>
     </div>
@@ -55,7 +55,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
 export function AnimateStep({ children, stepKey }: { children: React.ReactNode; stepKey: string }) {
   return (
-    <div key={stepKey} className="animate-fade-in-up-cascade flex w-full flex-col items-center gap-6">
+    <div key={stepKey} className="animate-fade-in-up-cascade flex w-full flex-col items-center gap-7">
       {children}
     </div>
   );
@@ -101,7 +101,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-[52px] w-full items-center justify-center rounded-2xl bg-primary text-[15px] font-semibold text-white shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:shadow-white/10"
+      className="flex h-[52px] w-full items-center justify-center rounded-2xl bg-primary text-[15px] font-semibold text-white shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed md:h-[54px] md:text-base dark:bg-white dark:text-black dark:shadow-white/10"
     >
       {children}
     </button>
@@ -121,7 +121,7 @@ export function MethodButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-[56px] w-full items-center gap-4 rounded-2xl border-2 border-zinc-100 bg-white px-5 text-[15px] font-medium text-foreground shadow-sm transition-all duration-200 hover:border-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+      className="group flex h-[56px] w-full items-center gap-4 rounded-2xl border-2 border-zinc-100 bg-white px-5 text-[15px] font-medium text-foreground shadow-sm transition-all duration-200 hover:border-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm md:h-[58px] md:text-base dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
     >
       <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">{icon}</span>
       <span className="flex-1 text-center pr-[24px]">{label}</span>
@@ -158,7 +158,7 @@ export function AuthInput({
       autoComplete={autoComplete}
       autoFocus={autoFocus}
       disabled={disabled}
-      className="h-12 w-full border-b-2 border-zinc-200 bg-transparent text-base text-foreground placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-accent disabled:opacity-40 dark:border-zinc-700 dark:placeholder:text-zinc-500 dark:focus:border-accent"
+      className="h-12 w-full border-b-2 border-zinc-200 bg-transparent text-base text-foreground placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-accent disabled:opacity-40 md:h-13 md:text-[17px] dark:border-zinc-700 dark:placeholder:text-zinc-500 dark:focus:border-accent"
     />
   );
 }
