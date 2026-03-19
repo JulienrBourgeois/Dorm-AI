@@ -23,7 +23,7 @@ export function AccessDeniedStep({ handleSignOutAndReset }: Pick<AuthFunnelActio
         <ShieldXIcon className="text-red-400" />
         <h1 className="text-3xl font-bold tracking-tight">Access denied</h1>
         <p className="max-w-[320px] text-center text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-          Your account doesn&apos;t have admin access. Contact your administrator to get the ADMIN role assigned.
+          Your account doesn&apos;t have access to the property manager console. Contact your organization administrator to be granted access.
         </p>
         <PrimaryButton onClick={handleSignOutAndReset}>Sign out</PrimaryButton>
       </AnimateStep>
