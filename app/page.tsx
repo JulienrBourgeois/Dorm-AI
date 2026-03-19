@@ -29,7 +29,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-white dark:bg-black">
       {/* Nav */}
-      <header className="flex w-full items-center justify-between px-6 py-5 lg:px-12">
+      <header className="animate-fade-in flex w-full items-center justify-between px-6 py-5 lg:px-12">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
             <span className="text-sm font-bold text-white">D</span>
@@ -54,7 +54,7 @@ export default function LandingPage() {
 
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center px-6 pt-16 pb-20 sm:pt-24 lg:pt-32">
-        <div className="flex w-full max-w-3xl flex-col items-center text-center">
+        <div className="animate-fade-in-up-cascade flex w-full max-w-2xl flex-col items-center text-center">
           <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-xl shadow-primary/20 lg:mb-10 lg:h-24 lg:w-24">
             <span className="text-3xl font-bold text-white lg:text-4xl">D</span>
           </div>
@@ -64,7 +64,7 @@ export default function LandingPage() {
             <span className="text-accent">simplified.</span>
           </h1>
 
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-500 lg:mt-7 lg:text-xl lg:leading-relaxed dark:text-zinc-400">
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-zinc-500 lg:mt-7 lg:text-xl lg:leading-relaxed dark:text-zinc-400">
             Move from paper forms and spreadsheets to a clean digital platform.
             Admins schedule, inspectors document, tenants stay informed — all in one place.
           </p>
@@ -86,7 +86,7 @@ export default function LandingPage() {
         </div>
 
         {/* Features */}
-        <div className="mt-20 w-full max-w-3xl lg:mt-28">
+        <div className="animate-fade-in-up-delay mt-20 w-full max-w-2xl lg:mt-28">
           <ul className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
               <li key={f} className="flex items-start gap-3 rounded-xl p-3">
@@ -99,7 +99,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-100 px-6 py-8 text-center dark:border-zinc-800">
+      <footer className="animate-fade-in border-t border-zinc-100 px-6 py-8 text-center dark:border-zinc-800">
         <p className="text-xs text-zinc-400 dark:text-zinc-500">
           &copy; {new Date().getFullYear()} Dorm AI. All rights reserved.
         </p>

@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/middleware.ts"],"sourcesContent":["import { NextResponse } from \"next/server\";\nimport type { NextRequest } from \"next/server\";\n\n/**\n * Middleware stub. Currently a pass-through.\n * Will be extended to protect authenticated routes (e.g. /home) once session\n * management is finalized.\n */\nexport function middleware(_request: NextRequest) {\n  return NextResponse.next();\n}\n\nexport const config = {\n  matcher: [],\n};\n"],"names":[],"mappings":";;;;;;AAAA;AAAA;;AAQO,SAAS,WAAW,QAAqB;IAC9C,OAAO,gMAAY,CAAC,IAAI;AAC1B;AAEO,MAAM,SAAS;IACpB,SAAS,EAAE;AACb"}}]
-}
