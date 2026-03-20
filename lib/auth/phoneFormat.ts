@@ -27,3 +27,13 @@ export function phoneToE164(digitsOrFormatted: string): string {
   }
   return `+1${digits}`;
 }
+
+/** Index in formatted string right after the nth digit (for cursor placement). */
+export function cursorAfterDigits(formatted: string, n: number): number {
+  let count = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i])) count++;
+    if (count >= n) return i + 1;
+  }
+  return formatted.length;
+}

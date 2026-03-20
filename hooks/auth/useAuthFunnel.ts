@@ -1,22 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import type { ConfirmationResult } from "firebase/auth";
 import {
   signIn,
   signUp,
   signOutUser,
-  createRecaptchaVerifier,
-  sendPhoneCode,
-  confirmPhoneCode,
   sendPasswordReset,
   subscribeToAuthState,
 } from "@/app/lib/firebase/auth";
-import { upsertUserDoc } from "@/lib/auth/userBootstrap";
+import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
+import { getRedirectPathForUser } from "@/lib/auth/redirectPath";
 import { getAuthErrorMessage } from "@/lib/auth/authErrors";
-import { phoneToE164 } from "@/lib/auth/phoneFormat";
 import type { AuthStep, AuthFunnelState, AuthFunnelActions } from "@/types/auth/authFunnel";
 
 const STEP_FROM_URL: AuthStep[] = [
@@ -24,11 +20,8 @@ const STEP_FROM_URL: AuthStep[] = [
   "login-chooser",
   "email-signup",
   "email-login",
-  "phone-entry",
-  "phone-otp",
   "forgot-password",
   "reset-sent",
-  "checking-access",
 ];
 
 function stepFromParam(param: string | null): AuthStep | null {
@@ -55,35 +48,15 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const [email, setEmail] = useState(() => (stepParam === "forgot-password" || stepParam === "email-login" ? emailParam : ""));
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [phoneDigits, setPhoneDigits] = useState("");
-  const setPhone = useCallback((value: string) => {
-    setPhoneDigits(value.replace(/\D/g, "").slice(0, 11));
-  }, []);
-  const phone = phoneDigits;
-  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [checkingMessage, setCheckingMessage] = useState("Setting up your account…");
-
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaContainerRef = useRef<HTMLDivElement | null>(null);
-  const recaptchaInitialized = useRef(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (user) => {
-      if (user && step === "welcome") {
-        await postAuth(user);
-      }
+      if (user) await postAuth(user);
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendCooldown]);
 
   useEffect(() => {
     const urlStep = stepFromParam(searchParams.get("step"));
@@ -95,15 +68,13 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const postAuth = useCallback(
     async (user: import("firebase/auth").User) => {
       try {
-        const { created } = await upsertUserDoc(user);
-        setCheckingMessage(created ? "Creating your account…" : "Signing you in…");
-        setStep("checking-access");
-        router.push(redirectTo ?? "/home");
+        const path = await getRedirectPathForUser(user);
+        router.push(path);
       } catch (err) {
         toast.error(getAuthErrorMessage(err));
       }
     },
-    [router, redirectTo]
+    [router]
   );
 
   function goTo(next: AuthStep) {
@@ -119,7 +90,6 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   function goWelcome() {
     setPassword("");
     setConfirmPassword("");
-    setOtp("");
     setStep("welcome");
     router.replace(pathname, { scroll: false });
   }
@@ -155,67 +125,17 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
     }
   }
 
-  async function handleSendPhoneCode(e: FormEvent) {
-    e.preventDefault();
-    if (phone.length < 10) return toast.error("Please enter a valid US phone number (10 digits).");
-    const e164 = phoneToE164(phone);
-    setLoading(true);
-    try {
-      if (!recaptchaInitialized.current && recaptchaContainerRef.current) {
-        createRecaptchaVerifier(recaptchaContainerRef.current, { size: "invisible" });
-        recaptchaInitialized.current = true;
-      }
-      const confirmation = await sendPhoneCode(e164);
-      confirmationRef.current = confirmation;
-      setResendCooldown(60);
-      goTo("phone-otp");
-    } catch (err) {
-      toast.error(getAuthErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: FormEvent) {
-    e.preventDefault();
-    if (otp.length < 6) return toast.error("Please enter the 6-digit code.");
-    if (!confirmationRef.current) return toast.error("Session expired. Please request a new code.");
-    setLoading(true);
-    try {
-      const { user } = await confirmPhoneCode(confirmationRef.current, otp);
-      await postAuth(user);
-    } catch (err) {
-      toast.error(getAuthErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleResendCode() {
-    if (resendCooldown > 0) return;
-    setLoading(true);
-    try {
-      recaptchaInitialized.current = false;
-      if (recaptchaContainerRef.current) {
-        createRecaptchaVerifier(recaptchaContainerRef.current, { size: "invisible" });
-        recaptchaInitialized.current = true;
-      }
-      const confirmation = await sendPhoneCode(phoneToE164(phone));
-      confirmationRef.current = confirmation;
-      setResendCooldown(60);
-      setOtp("");
-    } catch (err) {
-      toast.error(getAuthErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleForgotPassword(e: FormEvent) {
     e.preventDefault();
     if (!email.trim()) return toast.error("Please enter your email.");
     setLoading(true);
     try {
+      const exists = await isUserExistsByEmail(email);
+      if (!exists) {
+        toast.error("No account found with this email.");
+        setLoading(false);
+        return;
+      }
       await sendPasswordReset(email);
       goTo("reset-sent");
     } catch (err) {
@@ -230,18 +150,15 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
-    setPhone("");
-    setOtp("");
     goWelcome();
   }
 
   return {
-    step, mode, email, password, confirmPassword, phone, otp,
-    loading, resendCooldown, checkingMessage, recaptchaContainerRef,
-    setEmail, setPassword, setConfirmPassword, setPhone, setOtp, setMode,
+    step, mode, email, password, confirmPassword,
+    loading,
+    setEmail, setPassword, setConfirmPassword, setMode,
     goTo, goWelcome,
     handleEmailSignUp, handleEmailSignIn,
-    handleSendPhoneCode, handleVerifyOtp, handleResendCode,
     handleForgotPassword, handleSignOutAndReset,
   };
 }

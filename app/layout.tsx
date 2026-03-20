@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { SessionCookieSync } from "@/components/auth/SessionCookieSync";
 import "./globals.css";
 
 // Testing pull. 
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <SessionCookieSync />
         {children}
         <Toaster richColors position="top-center" />
       </body>
