@@ -31,6 +31,13 @@ interface UserDocData {
   name?: string;
   email?: string;
   dateOfBirth?: string;
+  role?: UserRole;
+}
+
+function portalPathForRole(role: UserRole): "/admin/dashboard" | "/inspector" | "/tenant" {
+  if (role === "inspector") return "/inspector";
+  if (role === "tenant") return "/tenant";
+  return "/admin/dashboard";
 }
 
 export function SetupFunnel() {
@@ -49,7 +56,8 @@ export function SetupFunnel() {
       }
       const { data } = await getDocumentData<UserDocData>(COLLECTIONS.users, user.uid);
       if (data?.dateOfBirth) {
-        router.replace("/home");
+        const path = data.role ? portalPathForRole(data.role) : "/admin/dashboard";
+        router.replace(path);
         return;
       }
       setName(data?.name ?? user.displayName ?? "");
@@ -102,7 +110,7 @@ export function SetupFunnel() {
         updatedAt: dateToTimestamp(new Date()),
       };
       await updateDocument(COLLECTIONS.users, user.uid, payload as Parameters<typeof updateDocument>[2]);
-      router.push("/home");
+      router.push(portalPathForRole(role));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
       setStatus("ready");

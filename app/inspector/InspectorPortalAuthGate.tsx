@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "firebase/auth";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 
-const INSPECTOR_PORTAL_PATH = "/inspector-portal";
+const INSPECTOR_PATH = "/inspector";
 const LOGIN_PATH = "/signup?step=login-chooser";
 
 export function InspectorPortalAuthGate({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export function InspectorPortalAuthGate({ children }: { children: React.ReactNod
       if (!u) {
         if (!didRedirectRef.current) {
           didRedirectRef.current = true;
-          const next = encodeURIComponent(INSPECTOR_PORTAL_PATH);
+          const next = encodeURIComponent(INSPECTOR_PATH);
           router.replace(`${LOGIN_PATH}&next=${next}`, { scroll: false });
         }
       } else {
@@ -41,9 +41,7 @@ export function InspectorPortalAuthGate({ children }: { children: React.ReactNod
     );
   }
 
-  // We redirect client-side when unauthenticated.
   if (!user) return null;
 
   return <>{children}</>;
 }
-

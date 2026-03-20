@@ -3,14 +3,13 @@ import { InspectorPortalAuthGate } from "./InspectorPortalAuthGate";
 
 export const metadata: Metadata = {
   title: "Inspector Portal — Dorm AI",
-  description: "Inspector dashboard wireframe.",
+  description: "Inspector dashboard.",
 };
 
-export default function InspectorPortalLayout({
+export default function InspectorLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return <InspectorPortalAuthGate>{children}</InspectorPortalAuthGate>;
 }
-

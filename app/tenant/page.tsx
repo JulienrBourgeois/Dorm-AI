@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { subscribeToAuthState } from "@/app/lib/firebase/auth";
+import { subscribeToAuthState, signOutUser } from "@/app/lib/firebase/auth";
 
 type SidebarItem = {
   label: string;
@@ -17,14 +17,11 @@ function TenantAuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = subscribeToAuthState((user: import("firebase/auth").User | null) => {
       if (!user) {
-        // Keep it consistent with the signup UI's step list.
         router.replace("/signup?step=login-chooser");
         return;
       }
-
       setChecking(false);
     });
-
     return unsubscribe;
   }, [router]);
 
@@ -61,6 +58,7 @@ function SidebarLink({ item }: { item: SidebarItem }) {
 }
 
 export default function TenantHomePage() {
+  const router = useRouter();
   const sidebarItems: SidebarItem[] = [
     { label: "Home", href: "#home", active: true },
     { label: "Inbox", href: "#inbox" },
@@ -68,6 +66,11 @@ export default function TenantHomePage() {
     { label: "Room info", href: "#room-info" },
     { label: "Settings", href: "#settings" },
   ];
+
+  async function handleSignOut() {
+    await signOutUser();
+    router.push("/");
+  }
 
   return (
     <TenantAuthGate>
@@ -95,6 +98,16 @@ export default function TenantHomePage() {
                     <SidebarLink key={item.label} item={item} />
                   ))}
                 </nav>
+
+                <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             </aside>
 
@@ -229,4 +242,3 @@ export default function TenantHomePage() {
     </TenantAuthGate>
   );
 }
-

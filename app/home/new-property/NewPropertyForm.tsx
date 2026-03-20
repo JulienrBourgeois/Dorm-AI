@@ -72,7 +72,7 @@ export function NewPropertyForm() {
         }
       );
       toast.success("Property created.");
-      router.push("/home");
+      router.push("/admin/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
       setSubmitting(false);
@@ -82,10 +82,10 @@ export function NewPropertyForm() {
   return (
     <div className="mx-auto max-w-md">
       <Link
-        href="/home"
+        href="/admin/dashboard"
         className="mb-6 inline-flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to home
+        ← Back to dashboard
       </Link>
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
         Create new property

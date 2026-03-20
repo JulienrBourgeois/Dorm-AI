@@ -28,10 +28,10 @@ export function ManagerPropertyDashboard({
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
           <Link
-            href="/home"
+            href="/admin/dashboard"
             className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            ← Home
+            ← Dashboard
           </Link>
         </div>
       </header>
