@@ -1,26 +1,49 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/**
- * Protects admin routes.
- * - If `admin-session` cookie is missing, redirect to `/admin/login`.
- * - `/admin/login` itself is excluded so unauthenticated users can log in.
- */
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+const SESSION_COOKIE_NAME = "__session";
 
-  if (pathname === "/admin/login") return NextResponse.next();
+const PUBLIC_PATHS = ["/", "/signup", "/setup-funnel"] as const;
 
-  const adminSession = request.cookies.get("admin-session")?.value;
-  if (!adminSession) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/admin/login";
-    return NextResponse.redirect(loginUrl);
+function hasSessionCookie(cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false;
+  return cookieHeader.includes(`${SESSION_COOKIE_NAME}=`);
+}
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?"));
+
+  if (!isPublicPath) {
+    return NextResponse.next();
+  }
+
+  if (!hasSessionCookie(request.headers.get("cookie"))) {
+    return NextResponse.next();
+  }
+
+  const origin = request.nextUrl.origin;
+  const redirectPathUrl = new URL("/api/auth/redirect-path", origin);
+  redirectPathUrl.searchParams.set("pathname", pathname);
+
+  const res = await fetch(redirectPathUrl.toString(), {
+    headers: {
+      cookie: request.headers.get("cookie") ?? "",
+    },
+  });
+
+  if (!res.ok) {
+    return NextResponse.next();
+  }
+
+  const body = (await res.json()) as { redirect?: string | null };
+  if (body.redirect) {
+    return NextResponse.redirect(new URL(body.redirect, origin));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: ["/", "/signup", "/setup-funnel"],
 };

@@ -6,6 +6,7 @@ export {
   getDocument,
   getDocumentData,
   getCollection,
+  queryCollection,
 } from "./read";
 export { updateDocument } from "./update";
 export { deleteDocument } from "./delete";

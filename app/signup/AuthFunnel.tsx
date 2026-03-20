@@ -3,9 +3,7 @@
 import { useAuthFunnel } from "@/hooks/auth/useAuthFunnel";
 import { WelcomeStep, LoginChooserStep } from "@/components/auth/steps/WelcomeSteps";
 import { EmailSignUpStep, EmailLoginStep } from "@/components/auth/steps/EmailSteps";
-import { PhoneEntryStep, PhoneOtpStep } from "@/components/auth/steps/PhoneSteps";
 import { ForgotPasswordStep, ResetSentStep } from "@/components/auth/steps/ResetSteps";
-import { LoadingStep } from "@/components/auth/steps/StatusSteps";
 
 export function AuthFunnel() {
   const f = useAuthFunnel();
@@ -39,26 +37,6 @@ export function AuthFunnel() {
         />
       );
 
-    case "phone-entry":
-      return (
-        <PhoneEntryStep
-          phone={f.phone} loading={f.loading} mode={f.mode}
-          setPhone={f.setPhone} goTo={f.goTo} handleSendPhoneCode={f.handleSendPhoneCode}
-          recaptchaContainerRef={f.recaptchaContainerRef}
-        />
-      );
-
-    case "phone-otp":
-      return (
-        <PhoneOtpStep
-          phone={f.phone} otp={f.otp} loading={f.loading}
-          resendCooldown={f.resendCooldown}
-          setOtp={f.setOtp} goTo={f.goTo}
-          handleVerifyOtp={f.handleVerifyOtp} handleResendCode={f.handleResendCode}
-          recaptchaContainerRef={f.recaptchaContainerRef}
-        />
-      );
-
     case "forgot-password":
       return (
         <ForgotPasswordStep
@@ -69,9 +47,6 @@ export function AuthFunnel() {
 
     case "reset-sent":
       return <ResetSentStep email={f.email} goTo={f.goTo} />;
-
-    case "checking-access":
-      return <LoadingStep message={f.checkingMessage} />;
 
     default:
       return null;

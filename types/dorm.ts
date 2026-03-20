@@ -23,6 +23,9 @@ export type ChargeStatus =
   | "PAID"
   | "WAIVED";
 
+/** User role from post-signup setup funnel. */
+export type UserRole = "property_manager" | "inspector" | "tenant";
+
 // --- Entity interfaces (id omitted; use WithId<T> when document has id) ---
 
 export interface User {
@@ -31,6 +34,10 @@ export interface User {
   phone?: string;
   gender?: string;
   bornAt?: Date;
+  /** From setup funnel; YYYY-MM-DD (date only, no timezone). */
+  dateOfBirth?: string;
+  /** From setup funnel. */
+  role?: UserRole;
   createdAt: Date;
   updatedAt: Date;
 }

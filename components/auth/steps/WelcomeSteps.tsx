@@ -1,6 +1,6 @@
 "use client";
 
-import { Shell, AnimateStep, MethodButton, BackButton, TextLink, Footer, MailIcon, PhoneIcon } from "@/components/auth/ui";
+import { Shell, AnimateStep, MethodButton, BackButton, TextLink, Footer, MailIcon } from "@/components/auth/ui";
 import type { AuthFunnelActions } from "@/types/auth/authFunnel";
 
 export function WelcomeStep({ goTo, setMode }: Pick<AuthFunnelActions, "goTo" | "setMode">) {
@@ -16,7 +16,6 @@ export function WelcomeStep({ goTo, setMode }: Pick<AuthFunnelActions, "goTo" | 
         </p>
         <div className="flex w-full flex-col gap-3 pt-2">
           <MethodButton icon={<MailIcon className="text-secondary" />} label="Sign up with email" onClick={() => { setMode("signup"); goTo("email-signup"); }} />
-          <MethodButton icon={<PhoneIcon className="text-secondary" />} label="Sign up with phone" onClick={() => { setMode("signup"); goTo("phone-entry"); }} />
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Already have an account?{" "}
@@ -36,7 +35,6 @@ export function LoginChooserStep({ goTo, setMode, goWelcome }: Pick<AuthFunnelAc
         <h1 className="self-start text-3xl font-bold tracking-tight md:text-4xl">Welcome back</h1>
         <div className="flex w-full flex-col gap-3 pt-1">
           <MethodButton icon={<MailIcon className="text-secondary" />} label="Continue with email" onClick={() => goTo("email-login")} />
-          <MethodButton icon={<PhoneIcon className="text-secondary" />} label="Continue with phone" onClick={() => goTo("phone-entry")} />
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Don&apos;t have an account?{" "}

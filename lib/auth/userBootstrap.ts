@@ -22,7 +22,6 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
     await setDocument(COLLECTIONS.users, user.uid, {
       name: user.displayName ?? "",
       email: user.email ?? "",
-      phone: user.phoneNumber ?? "",
       createdAt: now,
       updatedAt: now,
     });
@@ -34,7 +33,6 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
     user.uid,
     {
       email: user.email ?? "",
-      phone: user.phoneNumber ?? "",
       updatedAt: now,
     },
     { merge: true }
