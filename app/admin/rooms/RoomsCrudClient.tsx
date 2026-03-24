@@ -201,7 +201,11 @@ export function RoomsCrudClient() {
   if (!organizationId) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-        Select an organization first from <Link href="/admin" className="underline">/admin</Link> so rooms are scoped correctly.
+        Go to{" "}
+        <Link href="/home/dashboard" className="font-semibold underline">
+          home
+        </Link>{" "}
+        and open an organization you admin so rooms stay scoped correctly.
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { where } from "firebase/firestore";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 import { COLLECTIONS, getDocumentData, queryCollection } from "@/app/lib/firebase/firestore";
 import type { Organization } from "@/types";
+import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
 
 type MembershipDoc = {
   userId?: string;
@@ -97,7 +98,9 @@ export function AdminOrganizationSelectorClient() {
       {organizations.map((org) => (
         <div key={org.id} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{org.name}</div>
-          <div className="mt-1 text-xs font-mono text-zinc-500 dark:text-zinc-400">{org.slug}</div>
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {formatOrganizationCardSubtitle(org) || "Organization"}
+          </div>
           <div className="mt-4 flex gap-2">
             <Link
               href={`/admin/dashboard?organizationId=${org.id}`}

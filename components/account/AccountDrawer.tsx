@@ -1,0 +1,271 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
+export type AccountDrawerShortcut = { href: string; label: string };
+
+function getInitials(displayName?: string, email?: string): string {
+  const n = displayName?.trim();
+  if (n) {
+    const parts = n.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (
+        (parts[0][0] ?? "") + (parts[parts.length - 1][0] ?? "")
+      ).toUpperCase();
+    }
+    return n.slice(0, 2).toUpperCase();
+  }
+  const e = email?.trim();
+  if (e) return e.slice(0, 2).toUpperCase();
+  return "";
+}
+
+function UserCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c1.8-4 14.2-4 16 0" />
+    </svg>
+  );
+}
+
+type AccountDrawerProps = {
+  displayName?: string;
+  email?: string;
+  shortcuts?: AccountDrawerShortcut[];
+  onSignOut: () => void | Promise<void>;
+  /** Extra classes for the round trigger button (e.g. dark headers). */
+  triggerClassName?: string;
+};
+
+const PANEL_Z = 100_000;
+const BACKDROP_Z = 99_999;
+
+export function AccountDrawer({
+  displayName,
+  email,
+  shortcuts = [],
+  onSignOut,
+  triggerClassName,
+}: AccountDrawerProps) {
+  const [mounted, setMounted] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuEntered, setMenuEntered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const isClosingRef = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const finishClose = useCallback(() => {
+    isClosingRef.current = false;
+    setMenuVisible(false);
+    setMenuEntered(false);
+    setIsClosing(false);
+  }, []);
+
+  const openMenu = useCallback(() => {
+    isClosingRef.current = false;
+    setIsClosing(false);
+    setMenuEntered(false);
+    setMenuVisible(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setMenuEntered(true));
+    });
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    isClosingRef.current = true;
+    setIsClosing(true);
+    setMenuEntered(false);
+  }, []);
+
+  useEffect(() => {
+    if (!menuVisible || menuEntered || !isClosing) return;
+    const id = window.setTimeout(finishClose, 360);
+    return () => window.clearTimeout(id);
+  }, [menuVisible, menuEntered, isClosing, finishClose]);
+
+  useEffect(() => {
+    if (!menuVisible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMenu();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuVisible, closeMenu]);
+
+  useEffect(() => {
+    if (menuVisible) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuVisible]);
+
+  function handlePanelTransitionEnd(e: React.TransitionEvent<HTMLElement>) {
+    if (e.propertyName !== "transform") return;
+    if (isClosingRef.current) finishClose();
+  }
+
+  async function handleSignOut() {
+    if (!window.confirm("Are you sure you want to sign out?")) {
+      return;
+    }
+    setSigningOut(true);
+    try {
+      await onSignOut();
+    } finally {
+      setSigningOut(false);
+      closeMenu();
+    }
+  }
+
+  const initials = getInitials(displayName, email);
+  const showInitials = initials.length > 0;
+
+  const triggerBase =
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-zinc-200 bg-zinc-100 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-700";
+
+  const backdropBlocksClicks = menuEntered;
+
+  const portal =
+    mounted && menuVisible ? (
+      <>
+        <button
+          type="button"
+          aria-label="Close account menu"
+          className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ease-out ${
+            menuEntered ? "opacity-100" : "opacity-0"
+          } ${backdropBlocksClicks ? "pointer-events-auto" : "pointer-events-none"}`}
+          style={{ zIndex: BACKDROP_Z }}
+          onClick={closeMenu}
+        />
+        <aside
+          role="dialog"
+          aria-modal
+          aria-labelledby="account-drawer-title"
+          className={`fixed inset-y-0 right-0 flex w-full max-w-sm flex-col border-l border-zinc-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-zinc-800 dark:bg-zinc-950 ${
+            menuEntered ? "translate-x-0" : "translate-x-full"
+          }`}
+          style={{ zIndex: PANEL_Z }}
+          onTransitionEnd={handlePanelTransitionEnd}
+        >
+          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <h2 id="account-drawer-title" className="text-lg font-semibold text-foreground">
+              Account
+            </h2>
+            <button
+              type="button"
+              onClick={closeMenu}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-foreground dark:hover:bg-zinc-800"
+              aria-label="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="border-b border-zinc-100 px-5 py-5 dark:border-zinc-800">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-lg font-bold text-white shadow-md shadow-primary/20">
+                {showInitials ? (
+                  initials
+                ) : (
+                  <UserCircleIcon className="text-white opacity-95" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                {displayName ? (
+                  <p className="truncate font-semibold text-foreground">{displayName}</p>
+                ) : null}
+                {email ? (
+                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
+                ) : !displayName ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Signed in</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+            {shortcuts.map((s) => (
+              <Link
+                key={s.href + s.label}
+                href={s.href}
+                onClick={closeMenu}
+                className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              >
+                {s.label}
+              </Link>
+            ))}
+            {shortcuts.length > 0 ? (
+              <div className="my-2 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+            ) : null}
+            <Link
+              href="/terms"
+              onClick={closeMenu}
+              className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            >
+              Terms of Use
+            </Link>
+            <Link
+              href="/privacy"
+              onClick={closeMenu}
+              className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            >
+              Privacy Policy
+            </Link>
+          </nav>
+
+          <div className="border-t border-zinc-100 p-4 dark:border-zinc-800">
+            <button
+              type="button"
+              disabled={signingOut}
+              onClick={() => void handleSignOut()}
+              className="flex h-12 w-full items-center justify-center rounded-2xl border-2 border-zinc-200 text-[15px] font-semibold text-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-800 disabled:opacity-50 dark:border-zinc-700 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+            >
+              {signingOut ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
+        </aside>
+      </>
+    ) : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={menuVisible}
+        aria-haspopup="dialog"
+        aria-label="Open account menu"
+        onClick={menuVisible ? closeMenu : openMenu}
+        className={`${triggerBase} ${triggerClassName ?? ""}`.trim()}
+      >
+        {showInitials ? (
+          <span aria-hidden>{initials}</span>
+        ) : (
+          <UserCircleIcon className="text-zinc-600 dark:text-zinc-300" />
+        )}
+      </button>
+
+      {mounted && portal ? createPortal(portal, document.body) : null}
+    </>
+  );
+}

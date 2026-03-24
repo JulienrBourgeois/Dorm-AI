@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
 import { NewPropertyForm } from "./NewPropertyForm";
+import { NewPropertyHeader } from "./NewPropertyHeader";
 
 export const metadata: Metadata = {
-  title: "New organization — Dorm AI",
+  title: "New organization — Inspect AI",
   description: "Create a new organization.",
 };
 
 export default function NewPropertyPage() {
   return (
-    <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-sm">
-            <span className="text-xs font-bold text-white">D</span>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
+    <div className="flex min-h-[100dvh] flex-col bg-white dark:bg-black">
+      <NewPropertyHeader />
+      <main className="flex flex-1 flex-col items-center px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
         <NewPropertyForm />
       </main>
+      <footer className="shrink-0 border-t border-zinc-100 px-6 py-8 text-center dark:border-zinc-800">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          &copy; {new Date().getFullYear()} Inspect AI. All rights reserved.
+        </p>
+      </footer>
     </div>
   );
 }

@@ -1,12 +1,25 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
 
 export const metadata: Metadata = {
-  title: "Inspector detail — Dorm AI",
+  title: "Inspector detail — Inspect AI",
 };
 
-export default function InspectorDetailPage({ params }: { params: { inspectorId: string } }) {
-  const { inspectorId } = params;
+export default async function InspectorDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ inspectorId: string }>;
+  searchParams: Promise<{ organizationId?: string }>;
+}) {
+  const { inspectorId } = await params;
+  const { organizationId } = await searchParams;
+  const oid = organizationId?.trim() ?? "";
+  const inspectionsHref = oid ? withAdminOrganizationId("/admin/inspections", oid) : "/home/dashboard";
+  const editHref = oid
+    ? withAdminOrganizationId(`/admin/inspectors/${inspectorId}/edit`, oid)
+    : "/home/dashboard";
 
   return (
     <section className="flex flex-col gap-6">
@@ -23,7 +36,7 @@ export default function InspectorDetailPage({ params }: { params: { inspectorId:
 
         <div className="flex gap-2">
           <Link
-            href={`/admin/inspectors/${inspectorId}/edit`}
+            href={editHref}
             className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
           >
             Update assignments
@@ -65,7 +78,7 @@ export default function InspectorDetailPage({ params }: { params: { inspectorId:
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Inspection workload</div>
-            <Link href="/admin/inspections" className="text-sm font-semibold text-accent hover:underline">
+            <Link href={inspectionsHref} className="text-sm font-semibold text-accent hover:underline">
               Go to inspections
             </Link>
           </div>
@@ -108,4 +121,3 @@ export default function InspectorDetailPage({ params }: { params: { inspectorId:
     </section>
   );
 }
-

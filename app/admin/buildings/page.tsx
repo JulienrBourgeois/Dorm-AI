@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { BuildingsCrudClient } from "./BuildingsCrudClient";
 
 export const metadata: Metadata = {
-  title: "Buildings — Dorm AI",
+  title: "Buildings — Inspect AI",
 };
 
 export default function BuildingsPage() {

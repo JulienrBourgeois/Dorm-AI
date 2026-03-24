@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BackLink } from "@/components/auth/ui";
 import { where } from "firebase/firestore";
 import { toast } from "sonner";
 import { logAuditEvent } from "@/app/lib/audit/logEvent";
@@ -180,7 +181,11 @@ export function ScheduleInspectionClient() {
   if (!organizationId) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-        Select an organization first from <Link href="/admin" className="underline">/admin</Link> to schedule inspections.
+        Go to{" "}
+        <Link href="/home/dashboard" className="font-semibold underline">
+          home
+        </Link>{" "}
+        and open an organization you admin to schedule inspections.
       </div>
     );
   }
@@ -196,12 +201,11 @@ export function ScheduleInspectionClient() {
             Create a new scheduled inspection for this organization.
           </p>
         </div>
-        <Link
+        <BackLink
           href={`/admin/inspections?organizationId=${organizationId}`}
-          className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
-        >
-          Back to inspections
-        </Link>
+          aria-label="Back to inspections"
+          className="mb-0"
+        />
       </div>
 
       <form

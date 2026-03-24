@@ -1,10 +1,18 @@
 /**
- * Dorm AI data model: unified types and enums for all entities.
+ * Inspect AI data model: unified types and enums for all entities.
  * Use WithId<T> when reading documents from Firestore (id from snapshot).
  * Date fields are Date in app code; Firestore stores Timestamp — use convert helpers when reading/writing.
  */
 
 // --- Enums (string unions) ---
+
+/** Where the organization primarily operates (for profiles and filtering). */
+export type OrganizationType =
+  | "APARTMENT_COMPLEX"
+  | "UNIVERSITY"
+  | "CORPORATE_BUILDING"
+  | "MIXED_USE"
+  | "OTHER";
 
 export type MembershipRole = "ADMIN" | "INSPECTOR" | "TENANT";
 export type MembershipStatus = "INVITED" | "ACTIVE" | "INACTIVE";
@@ -27,9 +35,11 @@ export type ChargeStatus =
 /** User role from post-signup setup funnel. */
 export type UserRole = "property_manager" | "inspector" | "tenant";
 
-// --- Entity interfaces (id omitted; use WithId<T> when document has id) ---
+// --- Entity interfaces (optional id mirrors document id in stored payloads; use WithId<T> when id is required) ---
 
 export interface User {
+  /** Same as the Firestore document id (Auth uid or invite placeholder). */
+  id?: string;
   name: string;
   email: string;
   phone?: string;
@@ -44,13 +54,25 @@ export interface User {
 }
 
 export interface Organization {
+  /** Same as the Firestore document id. */
+  id?: string;
   name: string;
+  /** Internal stable id segment; not shown in UI. Routes use Firestore document id. */
   slug: string;
+  organizationType?: OrganizationType;
+  /** Street or building line; use with autocomplete="street-address". */
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  website?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Membership {
+  /** Same as the Firestore document id. */
+  id?: string;
   userId: string;
   organizationId: string;
   role: MembershipRole;

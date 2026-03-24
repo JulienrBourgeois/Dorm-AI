@@ -1,12 +1,25 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
 
 export const metadata: Metadata = {
-  title: "Tenant detail — Dorm AI",
+  title: "Tenant detail — Inspect AI",
 };
 
-export default function TenantDetailPage({ params }: { params: { tenantId: string } }) {
-  const { tenantId } = params;
+export default async function TenantDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ organizationId?: string }>;
+}) {
+  const { tenantId } = await params;
+  const { organizationId } = await searchParams;
+  const oid = organizationId?.trim() ?? "";
+  const inspectionsHref = oid ? withAdminOrganizationId("/admin/inspections", oid) : "/home/dashboard";
+  const editHref = oid
+    ? withAdminOrganizationId(`/admin/tenants/${tenantId}/edit`, oid)
+    : "/home/dashboard";
 
   return (
     <section className="flex flex-col gap-6">
@@ -23,7 +36,7 @@ export default function TenantDetailPage({ params }: { params: { tenantId: strin
 
         <div className="flex gap-2">
           <Link
-            href={`/admin/tenants/${tenantId}/edit`}
+            href={editHref}
             className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
           >
             Edit tenant
@@ -69,10 +82,7 @@ export default function TenantDetailPage({ params }: { params: { tenantId: strin
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Inspection history</div>
-            <Link
-              href="/admin/inspections"
-              className="text-sm font-semibold text-accent hover:underline"
-            >
+            <Link href={inspectionsHref} className="text-sm font-semibold text-accent hover:underline">
               View all inspections
             </Link>
           </div>
@@ -88,20 +98,14 @@ export default function TenantDetailPage({ params }: { params: { tenantId: strin
               </thead>
               <tbody>
                 {[
-                  { id: "i-2001", room: "2B-105", result: "Completed" },
-                  { id: "i-1992", room: "2B-105", result: "Completed" },
-                  { id: "i-1984", room: "2B-105", result: "Scheduled" },
-                ].map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-800">
-                    <td className="px-4 py-4">
-                      <Link href={`/admin/inspections/${r.id}`} className="font-semibold text-accent hover:underline">
-                        {r.id}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">{r.room}</td>
-                    <td className="px-4 py-4">
-                      <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">{r.result}</span>
-                    </td>
+                  { inspection: "Move-out", room: "2B-214", result: "Completed" },
+                  { inspection: "Routine", room: "2B-214", result: "Completed" },
+                  { inspection: "Move-in", room: "1C-044", result: "Scheduled" },
+                ].map((row) => (
+                  <tr key={`${row.inspection}-${row.room}`} className="border-b border-zinc-100 dark:border-zinc-800">
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-200">{row.inspection}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-200">{row.room}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-200">{row.result}</td>
                   </tr>
                 ))}
               </tbody>
@@ -109,11 +113,10 @@ export default function TenantDetailPage({ params }: { params: { tenantId: strin
           </div>
 
           <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300">
-            Notes, current charges, and room assignment details go here.
+            Full inspection history and charge context will render here.
           </div>
         </div>
       </div>
     </section>
   );
 }
-

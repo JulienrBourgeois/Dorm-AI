@@ -80,7 +80,7 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         if (isAdmin) {
           const token = await user.getIdToken();
           await setSessionCookie(token);
-          router.push("/admin");
+          router.push("/home/dashboard");
         } else {
           setStep("access-denied");
         }

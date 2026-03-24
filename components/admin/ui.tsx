@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { AppBrandReload } from "@/components/AppBrandReload";
+
 export function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,12 +46,29 @@ export function ShieldXIcon({ className }: { className?: string }) {
   );
 }
 
-export function Shell({ children }: { children: React.ReactNode }) {
+/** Full-viewport layout aligned with the marketing home page (header + spacious main). */
+export function Shell({
+  children,
+  headerEnd,
+}: {
+  children: React.ReactNode;
+  /** e.g. profile menu when the user is signed in */
+  headerEnd?: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-white px-5 py-10 md:bg-zinc-50 md:px-6 md:py-12 dark:bg-black dark:md:bg-zinc-950">
-      <div className="flex w-full max-w-[440px] flex-col items-center gap-7 md:rounded-3xl md:border md:border-zinc-200 md:bg-white md:px-10 md:py-12 md:shadow-xl md:shadow-black/[0.03] dark:md:border-zinc-700/50 dark:md:bg-zinc-900">
-        {children}
-      </div>
+    <div className="flex min-h-[100dvh] flex-col bg-white dark:bg-black">
+      <header className="animate-fade-in flex w-full shrink-0 items-center justify-between gap-4 px-6 py-5 lg:px-12">
+        <AppBrandReload />
+        {headerEnd ? <div className="flex shrink-0 items-center">{headerEnd}</div> : null}
+      </header>
+      <main className="flex flex-1 flex-col items-center px-6 pt-8 pb-12 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-20">
+        <div className="flex w-full max-w-[440px] flex-col">{children}</div>
+      </main>
+      <footer className="shrink-0 border-t border-zinc-100 px-6 py-8 text-center dark:border-zinc-800">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          &copy; {new Date().getFullYear()} Inspect AI. All rights reserved.
+        </p>
+      </footer>
     </div>
   );
 }
@@ -64,7 +84,7 @@ export function AnimateStep({ children, stepKey }: { children: React.ReactNode; 
 export function Footer() {
   return (
     <p className="animate-fade-in pt-6 text-center text-xs leading-relaxed text-zinc-400 dark:text-zinc-500">
-      By using Dorm AI, you agree to our{" "}
+      By using Inspect AI, you agree to our{" "}
       <a href="/terms" className="text-accent underline-offset-2 hover:underline">Terms of Use</a>
       {" "}and{" "}
       <a href="/privacy" className="text-accent underline-offset-2 hover:underline">Privacy Policy</a>.
@@ -72,16 +92,46 @@ export function Footer() {
   );
 }
 
-export function BackButton({ onClick }: { onClick: () => void }) {
+const backControlClassName =
+  "group flex h-10 w-10 shrink-0 items-center justify-center self-start rounded-full border-2 border-accent/30 text-accent transition-all duration-200 hover:border-accent hover:bg-accent/5 active:scale-95";
+
+export function BackButton({
+  onClick,
+  "aria-label": ariaLabel = "Go back",
+}: {
+  onClick: () => void;
+  "aria-label"?: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group self-start mb-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-accent/30 text-accent transition-all duration-200 hover:border-accent hover:bg-accent/5 active:scale-95"
-      aria-label="Go back"
+      className={`${backControlClassName} mb-2`}
+      aria-label={ariaLabel}
     >
       <ArrowLeftIcon className="transition-transform duration-200 group-hover:-translate-x-0.5" />
     </button>
+  );
+}
+
+export function BackLink({
+  href,
+  className,
+  "aria-label": ariaLabel = "Go back",
+}: {
+  href: string;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const marginClass = className !== undefined ? "" : " mb-2";
+  return (
+    <Link
+      href={href}
+      className={`${backControlClassName}${marginClass}${className ? ` ${className}` : ""}`}
+      aria-label={ariaLabel}
+    >
+      <ArrowLeftIcon className="transition-transform duration-200 group-hover:-translate-x-0.5" />
+    </Link>
   );
 }
 
@@ -138,6 +188,7 @@ export function AuthInput({
   autoComplete,
   autoFocus,
   disabled,
+  inputMode,
 }: {
   id: string;
   type?: string;
@@ -147,6 +198,7 @@ export function AuthInput({
   autoComplete?: string;
   autoFocus?: boolean;
   disabled?: boolean;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
   return (
     <input
@@ -158,6 +210,7 @@ export function AuthInput({
       autoComplete={autoComplete}
       autoFocus={autoFocus}
       disabled={disabled}
+      inputMode={inputMode}
       className="h-12 w-full border-b-2 border-zinc-200 bg-transparent text-base text-foreground placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-accent disabled:opacity-40 md:h-13 md:text-[17px] dark:border-zinc-700 dark:placeholder:text-zinc-500 dark:focus:border-accent"
     />
   );

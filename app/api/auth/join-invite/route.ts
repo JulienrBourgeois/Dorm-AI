@@ -73,6 +73,7 @@ export async function POST(request: Request) {
       .doc(membershipId)
       .set(
         {
+          id: membershipId,
           userId: decoded.uid,
           organizationId: invite.organizationId,
           role: invite.role,

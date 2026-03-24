@@ -8,9 +8,9 @@ export function WelcomeStep({ goTo, setMode }: Pick<AuthFunnelActions, "goTo" | 
     <Shell>
       <AnimateStep stepKey="welcome">
         <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20">
-          <span className="text-3xl font-bold text-white">D</span>
+          <span className="text-3xl font-bold text-white">I</span>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Dorm AI</h1>
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Inspect AI</h1>
         <p className="max-w-[340px] text-center text-base leading-relaxed text-secondary-alt md:max-w-[380px] md:text-[17px] dark:text-zinc-400">
           Streamline inspections, catch damages early, and manage your organizations — all in one place.
         </p>

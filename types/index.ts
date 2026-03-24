@@ -3,6 +3,7 @@ export type {
   User,
   UserRole,
   Organization,
+  OrganizationType,
   Membership,
   Building,
   Room,

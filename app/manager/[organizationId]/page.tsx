@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ManagerOrganizationDashboard } from "./ManagerOrganizationDashboard";
 
 export const metadata: Metadata = {
-  title: "Organization — Dorm AI",
+  title: "Organization — Inspect AI",
   description: "Manage this organization.",
 };
 

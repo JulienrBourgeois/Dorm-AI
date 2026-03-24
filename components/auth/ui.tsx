@@ -10,6 +10,7 @@ export {
   AnimateStep,
   Footer,
   BackButton,
+  BackLink,
   PrimaryButton,
   MethodButton,
   AuthInput,

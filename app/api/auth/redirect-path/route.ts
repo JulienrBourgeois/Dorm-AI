@@ -12,9 +12,8 @@ export async function GET(request: Request) {
 
     const auth = getAdminAuth();
     const decoded = await auth.verifySessionCookie(value, true);
-    const path = await getRedirectPathForUid(decoded.uid);
-
     const pathnameParam = new URL(request.url).searchParams.get("pathname") ?? "/";
+    const path = await getRedirectPathForUid(decoded.uid, pathnameParam);
 
     // If user is already on the target path, no redirect
     if (pathnameParam === path) {

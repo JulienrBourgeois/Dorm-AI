@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { where } from "firebase/firestore";
+import { BackLink } from "@/components/auth/ui";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth";
@@ -196,12 +196,7 @@ export function TenantInspectionDetailClient({
               Room {roomLabel} - {buildingLabel}
             </div>
           </div>
-          <Link
-            href="/tenant"
-            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
-          >
-            Back to portal
-          </Link>
+          <BackLink href="/tenant" aria-label="Back to portal" className="mb-0" />
         </div>
 
         <section className="grid gap-4 md:grid-cols-4">

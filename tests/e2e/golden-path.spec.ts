@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("landing to auth chooser baseline golden path", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Dorm inspections,")).toBeVisible();
+  await expect(page.getByText("Property inspections,")).toBeVisible();
   await expect(page.getByRole("link", { name: "Get started free" })).toBeVisible();
 
   await page.getByRole("link", { name: "Get started free" }).click();

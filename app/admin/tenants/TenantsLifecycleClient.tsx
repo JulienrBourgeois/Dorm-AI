@@ -135,13 +135,16 @@ export function TenantsLifecycleClient() {
       const userId = `invite_tenant_${Date.now().toString(36)}`;
       const now = dateToTimestamp(new Date());
       await setDocument(COLLECTIONS.users, userId, {
+        id: userId,
         name,
         email,
         role: "tenant",
         createdAt: now,
         updatedAt: now,
       });
-      await setDocument(COLLECTIONS.memberships, `${userId}-${organizationId}`, {
+      const membershipId = `${userId}-${organizationId}`;
+      await setDocument(COLLECTIONS.memberships, membershipId, {
+        id: membershipId,
         userId,
         organizationId,
         role: "TENANT",
@@ -154,8 +157,8 @@ export function TenantsLifecycleClient() {
         eventType: "membership.created",
         actorId: "admin",
         entityType: "membership",
-        entityId: `${userId}-${organizationId}`,
-        membershipId: `${userId}-${organizationId}`,
+        entityId: membershipId,
+        membershipId,
         organizationId,
         toStatus: "INVITED",
         source: "admin.tenants.invite",
@@ -230,7 +233,11 @@ export function TenantsLifecycleClient() {
   if (!organizationId) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-        Select an organization first from <Link href="/admin" className="underline">/admin</Link> to manage tenants.
+        Go to{" "}
+        <Link href="/home/dashboard" className="font-semibold underline">
+          home
+        </Link>{" "}
+        and open an organization you admin to manage tenants.
       </div>
     );
   }

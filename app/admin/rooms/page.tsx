@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { RoomsCrudClient } from "./RoomsCrudClient";
 
 export const metadata: Metadata = {
-  title: "Rooms — Dorm AI",
+  title: "Rooms — Inspect AI",
 };
 
 export default function RoomsPage() {

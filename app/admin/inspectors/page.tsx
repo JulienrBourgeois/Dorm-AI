@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { InspectorsLifecycleClient } from "./InspectorsLifecycleClient";
 
 export const metadata: Metadata = {
-  title: "Inspectors — Dorm AI",
+  title: "Inspectors — Inspect AI",
 };
 
 export default function InspectorsPage() {

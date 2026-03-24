@@ -21,9 +21,11 @@ export async function isUserExistsByEmail(email: string): Promise<boolean> {
       message ?? "Failed to check email"
     );
   }
-  const data = (await res.json()) as
-    | { exists: boolean }
-    | { data?: { exists?: boolean } };
-  if ("data" in data) return Boolean(data.data?.exists);
-  return Boolean(data.exists);
+  const raw = (await res.json()) as Record<string, unknown>;
+  const nested = raw.data;
+  if (nested && typeof nested === "object" && "exists" in nested) {
+    return Boolean((nested as { exists?: boolean }).exists);
+  }
+  if ("exists" in raw) return Boolean(raw.exists);
+  return false;
 }

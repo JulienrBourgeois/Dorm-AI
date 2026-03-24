@@ -20,6 +20,7 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
 
   if (!exists) {
     await setDocument(COLLECTIONS.users, user.uid, {
+      id: user.uid,
       name: user.displayName ?? "",
       email: user.email ?? "",
       createdAt: now,
@@ -32,6 +33,7 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
     COLLECTIONS.users,
     user.uid,
     {
+      id: user.uid,
       email: user.email ?? "",
       updatedAt: now,
     },

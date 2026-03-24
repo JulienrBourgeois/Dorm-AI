@@ -10,34 +10,31 @@ import {
   PrimaryButton,
   Footer,
 } from "@/components/auth/ui";
+import { AccountDrawer } from "@/components/account/AccountDrawer";
 import { Loader } from "@/components/Loader";
 import { auth } from "@/app/lib/firebase/app";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth/state";
+import { signOutUser } from "@/app/lib/firebase/auth";
+import { clearSessionCookie } from "@/lib/admin/adminAuth";
 import {
   getDocumentData,
   updateDocument,
   COLLECTIONS,
   dateToTimestamp,
 } from "@/app/lib/firebase/firestore";
-import type { UserRole } from "@/types";
-
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "property_manager", label: "Property manager" },
-  { value: "inspector", label: "Inspector" },
-  { value: "tenant", label: "Tenant" },
-];
+import {
+  e164ToUsPhoneInput,
+  formatUsPhoneInput,
+  isValidNanp10,
+  usDigitsToE164,
+  usPhoneDigitsFromInput,
+} from "@/lib/phoneUs";
 
 interface UserDocData {
   name?: string;
   email?: string;
+  phone?: string;
   dateOfBirth?: string;
-  role?: UserRole;
-}
-
-function portalPathForRole(role: UserRole): "/admin/dashboard" | "/inspector" | "/tenant" {
-  if (role === "inspector") return "/inspector";
-  if (role === "tenant") return "/tenant";
-  return "/admin/dashboard";
 }
 
 export function SetupFunnel() {
@@ -45,8 +42,7 @@ export function SetupFunnel() {
   const [status, setStatus] = useState<"loading" | "ready" | "submitting">("loading");
   const [name, setName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (user) => {
@@ -56,13 +52,12 @@ export function SetupFunnel() {
       }
       const { data } = await getDocumentData<UserDocData>(COLLECTIONS.users, user.uid);
       if (data?.dateOfBirth) {
-        const path = data.role ? portalPathForRole(data.role) : "/admin/dashboard";
-        router.replace(path);
+        router.replace("/home/dashboard");
         return;
       }
       setName(data?.name ?? user.displayName ?? "");
       setDateOfBirth(data?.dateOfBirth ?? "");
-      setEmail(user.email ?? data?.email ?? "");
+      setPhone(data?.phone ? e164ToUsPhoneInput(data.phone) : "");
       setStatus("ready");
     });
     return unsubscribe;
@@ -96,39 +91,68 @@ export function SetupFunnel() {
       setStatus("ready");
       return;
     }
-    if (!role) {
-      toast.error("Please select who you are.");
+    const phoneDigits = usPhoneDigitsFromInput(phone);
+    if (!isValidNanp10(phoneDigits)) {
+      toast.error("Enter a valid US phone number (10 digits).");
+      setStatus("ready");
+      return;
+    }
+    const phoneE164 = usDigitsToE164(phoneDigits);
+    if (!phoneE164) {
+      toast.error("Enter a valid US phone number (10 digits).");
       setStatus("ready");
       return;
     }
     try {
-      const payload: Record<string, unknown> = {
+      await updateDocument(COLLECTIONS.users, user.uid, {
+        id: user.uid,
         name: trimmedName,
         dateOfBirth: dobTrimmed,
-        email: email.trim(),
-        role,
+        phone: phoneE164,
+        email: user.email ?? "",
         updatedAt: dateToTimestamp(new Date()),
-      };
-      await updateDocument(COLLECTIONS.users, user.uid, payload as Parameters<typeof updateDocument>[2]);
-      router.push(portalPathForRole(role));
+      } as Parameters<typeof updateDocument>[2]);
+      router.push("/home/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
       setStatus("ready");
     }
   }
 
+  async function handleSignOut() {
+    try {
+      await clearSessionCookie();
+      await signOutUser();
+      router.push("/");
+    } catch {
+      toast.error("Could not sign out. Try again.");
+    }
+  }
+
   if (status === "loading") {
-    return <Loader fullPage className="bg-white dark:bg-black" />;
+    return <Loader fullPage />;
   }
 
   return (
-    <Shell>
+    <Shell
+      headerEnd={
+        <AccountDrawer
+          displayName={name.trim() || undefined}
+          email={auth.currentUser?.email ?? undefined}
+          shortcuts={[
+            { href: "/", label: "About Inspect AI" },
+            { href: "/settings", label: "Settings" },
+          ]}
+          onSignOut={handleSignOut}
+        />
+      }
+    >
       <AnimateStep stepKey="setup-funnel">
         <h1 className="self-start text-3xl font-bold tracking-tight md:text-4xl">
           Finish setting up
         </h1>
         <p className="self-start text-sm text-zinc-500 dark:text-zinc-400">
-          A few quick questions so we can personalize your experience.
+          A few quick details so we know who you are. You&apos;ll choose how to use Inspect AI next.
         </p>
         <form
           onSubmit={handleSubmit}
@@ -163,40 +187,19 @@ export function SetupFunnel() {
             />
           </div>
           <div className="w-full">
-            <label htmlFor="setup-email" className="sr-only">
-              Email
+            <label htmlFor="setup-phone" className="mb-1 block text-sm text-zinc-500 dark:text-zinc-400">
+              Mobile number
             </label>
             <AuthInput
-              id="setup-email"
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
+              id="setup-phone"
+              type="tel"
+              inputMode="tel"
+              placeholder="(555) 555-5555"
+              value={phone}
+              onChange={(v) => setPhone(formatUsPhoneInput(v))}
+              autoComplete="tel-national"
               disabled={status === "submitting"}
             />
-          </div>
-          <div className="w-full">
-            <p className="mb-3 self-start text-sm font-medium text-foreground">
-              Who are you?
-            </p>
-            <div className="flex flex-col gap-2">
-              {ROLE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRole(opt.value)}
-                  disabled={status === "submitting"}
-                  className={`flex h-12 w-full items-center justify-center rounded-2xl border-2 text-[15px] font-medium transition-all disabled:opacity-40 md:h-[52px] md:text-base ${
-                    role === opt.value
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "border-zinc-200 bg-white text-foreground hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           </div>
           <PrimaryButton type="submit" disabled={status === "submitting"}>
             {status === "submitting" ? "Saving…" : "Continue"}

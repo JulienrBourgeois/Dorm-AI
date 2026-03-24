@@ -6,6 +6,8 @@ import { where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
+import { clearSessionCookie } from "@/lib/admin/adminAuth";
+import { AccountDrawer } from "@/components/account/AccountDrawer";
 import {
   COLLECTIONS,
   getDocumentData,
@@ -59,6 +61,7 @@ export function TenantInspectionsClient() {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState("");
   const [tenantName, setTenantName] = useState("Tenant");
+  const [accountEmail, setAccountEmail] = useState("");
   const [organizationName, setOrganizationName] = useState("—");
   const [roomLabel, setRoomLabel] = useState("—");
   const [inspections, setInspections] = useState<InspectionRow[]>([]);
@@ -156,12 +159,18 @@ export function TenantInspectionsClient() {
         return;
       }
       setUserId(user.uid);
+      setAccountEmail(user.email ?? "");
       await refreshTenantData(user.uid);
     });
     return unsubscribe;
   }, [refreshTenantData, router]);
 
   async function handleSignOut() {
+    try {
+      await clearSessionCookie();
+    } catch {
+      /* ignore */
+    }
     await signOutUser();
     router.push("/");
   }
@@ -190,13 +199,16 @@ export function TenantInspectionsClient() {
               {tenantName} - {organizationName}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleSignOut()}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-          >
-            Sign out
-          </button>
+          <AccountDrawer
+            displayName={tenantName !== "Tenant" ? tenantName : undefined}
+            email={accountEmail || undefined}
+            shortcuts={[
+              { href: "/home/dashboard", label: "Home" },
+              { href: "/settings", label: "Settings" },
+            ]}
+            onSignOut={handleSignOut}
+            triggerClassName="border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+          />
         </div>
       </header>
 

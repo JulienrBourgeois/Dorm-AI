@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { InspectionDetailClient } from "./InspectionDetailClient";
 
 export const metadata: Metadata = {
-  title: "Inspection detail — Dorm AI",
+  title: "Inspection detail — Inspect AI",
 };
 
 export default async function InspectionDetailPage({

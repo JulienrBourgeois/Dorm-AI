@@ -8,6 +8,9 @@ export function SignOutButton() {
   const router = useRouter();
 
   async function handleSignOut() {
+    if (!window.confirm("Are you sure you want to sign out?")) {
+      return;
+    }
     // Ensure middleware sees sign-out immediately.
     await clearSessionCookie();
     await signOutUser();

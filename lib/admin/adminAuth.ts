@@ -24,12 +24,15 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
 
   if (!exists) {
     await setDocument(COLLECTIONS.users, user.uid, {
+      id: user.uid,
       name: user.displayName ?? "",
       email: user.email ?? "",
       createdAt: now,
       updatedAt: now,
     });
-    await setDocument(COLLECTIONS.memberships, `${user.uid}-admin`, {
+    const legacyAdminMembershipId = `${user.uid}-admin`;
+    await setDocument(COLLECTIONS.memberships, legacyAdminMembershipId, {
+      id: legacyAdminMembershipId,
       userId: user.uid,
       role: "ADMIN",
       status: "ACTIVE",
@@ -43,6 +46,7 @@ export async function upsertUserDoc(user: User): Promise<{ created: boolean }> {
     COLLECTIONS.users,
     user.uid,
     {
+      id: user.uid,
       email: user.email ?? "",
       updatedAt: now,
     },

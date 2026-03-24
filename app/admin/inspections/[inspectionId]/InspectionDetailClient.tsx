@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { BackLink } from "@/components/auth/ui";
 import { toast } from "sonner";
 import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
@@ -274,12 +274,11 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Inspection ID: {inspectionId}</div>
         </div>
         <div className="flex gap-2">
-          <Link
+          <BackLink
             href={organizationId ? `/admin/inspections?organizationId=${organizationId}` : "/admin/inspections"}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
-          >
-            Back to inspections
-          </Link>
+            aria-label="Back to inspections"
+            className="mb-0"
+          />
         </div>
       </div>
 

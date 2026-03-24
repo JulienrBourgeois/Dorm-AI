@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { InspectorPortalAuthGate } from "./InspectorPortalAuthGate";
 
 export const metadata: Metadata = {
-  title: "Inspector Portal — Dorm AI",
+  title: "Inspector Portal — Inspect AI",
   description: "Inspector dashboard.",
 };
 

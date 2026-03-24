@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Settings — Dorm AI",
+  title: "Settings — Inspect AI",
   description: "Organization profile, permissions, notifications, and templates.",
 };
 

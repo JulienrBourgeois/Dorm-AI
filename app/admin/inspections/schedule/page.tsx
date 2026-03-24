@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ScheduleInspectionClient } from "./ScheduleInspectionClient";
 
 export const metadata: Metadata = {
-  title: "Schedule inspection — Dorm AI",
+  title: "Schedule inspection — Inspect AI",
 };
 
 export default function ScheduleInspectionPage() {

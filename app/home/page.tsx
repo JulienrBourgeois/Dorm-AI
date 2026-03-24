@@ -1,28 +1,29 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { getAdminAuth } from "@/app/lib/firebase/admin";
-import { getRedirectPathForUid } from "@/lib/auth/redirectPathServer";
+import { getAdminAuth, getAdminFirestore } from "@/app/lib/firebase/admin";
+import { COLLECTIONS } from "@/app/lib/firebase/firestore/collections";
 
 const SESSION_COOKIE_NAME = "__session";
 
 /**
- * /home — redirect to the user's portal by role (inspector → /inspector, tenant → /tenant, else → /admin/dashboard),
- * with fallback to /home/dashboard when no active role membership exists.
- * If no session, send to signup.
+ * /home — authenticated users go to the shared hub (/home/dashboard) after profile setup.
  */
 export default async function HomePage() {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore
-    .get(SESSION_COOKIE_NAME)
-    ?.value;
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionCookie) {
     redirect("/signup");
   }
   try {
     const auth = getAdminAuth();
     const decoded = await auth.verifySessionCookie(sessionCookie, true);
-    const path = await getRedirectPathForUid(decoded.uid);
-    redirect(path);
+    const firestore = getAdminFirestore();
+    const doc = await firestore.collection(COLLECTIONS.users).doc(decoded.uid).get();
+    const data = doc.data() as { dateOfBirth?: string } | undefined;
+    if (!data?.dateOfBirth) {
+      redirect("/setup-funnel");
+    }
+    redirect("/home/dashboard");
   } catch {
     redirect("/signup");
   }

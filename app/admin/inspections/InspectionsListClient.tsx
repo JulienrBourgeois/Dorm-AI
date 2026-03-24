@@ -184,7 +184,11 @@ export function InspectionsListClient() {
   if (!organizationId) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-        Select an organization first from <Link href="/admin" className="underline">/admin</Link> to manage inspections.
+        Go to{" "}
+        <Link href="/home/dashboard" className="font-semibold underline">
+          home
+        </Link>{" "}
+        and open an organization you admin to manage inspections.
       </div>
     );
   }

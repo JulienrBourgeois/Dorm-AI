@@ -72,6 +72,23 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(loginUrl);
     }
+
+    // Admin console is scoped to one organization; require active ADMIN membership for that org.
+    if (pathname !== "/admin" && !pathname.startsWith("/admin/login")) {
+      const organizationId = request.nextUrl.searchParams.get("organizationId")?.trim();
+      if (!organizationId) {
+        return NextResponse.redirect(new URL("/home/dashboard", origin));
+      }
+      const verifyUrl = new URL("/api/auth/verify-admin-org", origin);
+      verifyUrl.searchParams.set("organizationId", organizationId);
+      const verifyRes = await fetch(verifyUrl.toString(), {
+        headers: { cookie: cookieHeader ?? "" },
+      });
+      if (!verifyRes.ok) {
+        return NextResponse.redirect(new URL("/home/dashboard", origin));
+      }
+    }
+
     const path = await resolveRedirectTarget(origin, pathname, cookieHeader);
     if (path === "/inspector" || path === "/tenant" || path === "/setup-funnel" || path === "/home/dashboard") {
       return NextResponse.redirect(new URL(path, origin));
