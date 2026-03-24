@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { where } from "firebase/firestore";
 import { toast } from "sonner";
+import { auth } from "@/app/lib/firebase/app";
 import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
@@ -14,6 +15,7 @@ import {
   setDocument,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import { triggerMembershipInviteEmail } from "@/lib/email/triggerFromClient";
 import type { Building, MembershipStatus, User, WithId } from "@/types";
 
 type InspectorMembershipDoc = {
@@ -167,11 +169,29 @@ export function InspectorsLifecycleClient() {
       await setDocument(COLLECTIONS.inviteCodes, code, {
         organizationId,
         role: "INSPECTOR",
+        inviteeEmail: email,
+        inviteeName: name,
+        assignedBuildingIds: inviteBuildingId ? [inviteBuildingId] : [],
         createdAt: now,
         expiresAt,
       });
 
-      toast.success(`Inspector invited. Invite code: ${code}`);
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        void triggerMembershipInviteEmail(currentUser, {
+          organizationId,
+          role: "INSPECTOR",
+          inviteCode: code,
+          inviteeEmail: email,
+          inviteeName: name,
+        }).catch(() => {
+          toast.error(`Invite created, but email failed. Share this link: /join?code=${code}`);
+        });
+      } else {
+        toast.error(`Invite created, but send email failed. Share this link: /join?code=${code}`);
+      }
+
+      toast.success("Inspector invite created and email queued.");
       setInviteName("");
       setInviteEmail("");
       setInviteBuildingId("");

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { where } from "firebase/firestore";
 import { toast } from "sonner";
+import { auth } from "@/app/lib/firebase/app";
 import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
@@ -14,6 +15,7 @@ import {
   setDocument,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import { triggerMembershipInviteEmail } from "@/lib/email/triggerFromClient";
 import type { MembershipStatus, Room, User, WithId } from "@/types";
 
 type MembershipDoc = {
@@ -169,11 +171,29 @@ export function TenantsLifecycleClient() {
       await setDocument(COLLECTIONS.inviteCodes, code, {
         organizationId,
         role: "TENANT",
+        inviteeEmail: email,
+        inviteeName: name,
+        roomId: inviteRoomId || null,
         createdAt: now,
         expiresAt,
       });
 
-      toast.success(`Tenant invited. Invite code: ${code}`);
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        void triggerMembershipInviteEmail(currentUser, {
+          organizationId,
+          role: "TENANT",
+          inviteCode: code,
+          inviteeEmail: email,
+          inviteeName: name,
+        }).catch(() => {
+          toast.error(`Invite created, but email failed. Share this link: /join?code=${code}`);
+        });
+      } else {
+        toast.error(`Invite created, but send email failed. Share this link: /join?code=${code}`);
+      }
+
+      toast.success("Tenant invite created and email queued.");
       setInviteName("");
       setInviteEmail("");
       setInviteRoomId("");

@@ -73,12 +73,12 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         if (isNewUser) {
           void triggerWelcomeEmail(user).catch(() => {});
         }
-        router.push(path);
+        router.push(redirectTo ?? path);
       } catch (err) {
         toast.error(getAuthErrorMessage(err));
       }
     },
-    [router]
+    [redirectTo, router]
   );
 
   function goTo(next: AuthStep) {

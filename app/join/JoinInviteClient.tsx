@@ -28,9 +28,13 @@ export function JoinInviteClient() {
       }
 
       try {
+        const token = await user.getIdToken();
         const response = await fetch("/api/auth/join-invite", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ code }),
         });
         const payload = (await response.json()) as

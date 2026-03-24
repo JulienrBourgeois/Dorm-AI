@@ -25,3 +25,25 @@ export async function triggerOrganizationCreatedEmail(
     body: JSON.stringify({ organizationId }),
   });
 }
+
+export async function triggerMembershipInviteEmail(
+  user: User,
+  payload: {
+    organizationId: string;
+    role: "TENANT" | "INSPECTOR";
+    inviteCode: string;
+    inviteeEmail: string;
+    inviteeName?: string;
+  },
+): Promise<void> {
+  const token = await user.getIdToken();
+  await fetch("/api/email/membership-invite", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    credentials: "same-origin",
+    body: JSON.stringify(payload),
+  });
+}

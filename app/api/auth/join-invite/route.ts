@@ -1,6 +1,6 @@
-import { getAdminAuth, getAdminFirestore } from "@/app/lib/firebase/admin";
+import { getAdminFirestore } from "@/app/lib/firebase/admin";
 import { COLLECTIONS } from "@/app/lib/firebase/firestore";
-import { requireSessionCookie } from "@/lib/auth/session";
+import { verifyFirebaseBearer } from "@/lib/auth/verifyFirebaseBearer";
 import { apiError, apiOk } from "@/lib/core/apiResponse";
 import { AppError } from "@/lib/core/errors";
 import { requireString } from "@/lib/core/validation";
@@ -12,6 +12,9 @@ type Body = {
 type InviteCodeDoc = {
   organizationId: string;
   role: "INSPECTOR" | "TENANT";
+  inviteeEmail?: string;
+  roomId?: string | null;
+  assignedBuildingIds?: string[];
   createdAt?: unknown;
   expiresAt?: unknown;
 };
@@ -42,15 +45,16 @@ function isInviteExpired(doc: InviteCodeDoc): boolean {
 
 export async function POST(request: Request) {
   try {
+    const actor = await verifyFirebaseBearer(request);
+    if (!actor) {
+      throw new AppError("UNAUTHORIZED", "Invalid or missing token", 401);
+    }
+
     const body = (await request.json()) as Body;
     const code = requireString(body.code, "code", {
       minLength: 4,
       maxLength: 32,
     }).toUpperCase();
-
-    const sessionCookie = requireSessionCookie(request);
-    const auth = getAdminAuth();
-    const decoded = await auth.verifySessionCookie(sessionCookie, true);
 
     const db = getAdminFirestore();
     const inviteRef = db.collection(COLLECTIONS.inviteCodes).doc(code);
@@ -65,8 +69,19 @@ export async function POST(request: Request) {
     if (isInviteExpired(invite)) {
       throw new AppError("INVITE_EXPIRED", "Invite code has expired.", 410);
     }
+    if (invite.inviteeEmail) {
+      const invitee = invite.inviteeEmail.trim().toLowerCase();
+      const actorEmail = (actor.email || "").trim().toLowerCase();
+      if (!actorEmail || actorEmail !== invitee) {
+        throw new AppError(
+          "FORBIDDEN",
+          "This invite is assigned to a different email address.",
+          403,
+        );
+      }
+    }
 
-    const membershipId = `${decoded.uid}-${invite.organizationId}`;
+    const membershipId = `${actor.uid}-${invite.organizationId}`;
     const now = new Date();
     await db
       .collection(COLLECTIONS.memberships)
@@ -74,10 +89,17 @@ export async function POST(request: Request) {
       .set(
         {
           id: membershipId,
-          userId: decoded.uid,
+          userId: actor.uid,
           organizationId: invite.organizationId,
           role: invite.role,
           status: "ACTIVE",
+          roomId: invite.role === "TENANT" ? (invite.roomId ?? null) : null,
+          assignedBuildingIds:
+            invite.role === "INSPECTOR"
+              ? Array.isArray(invite.assignedBuildingIds)
+                ? invite.assignedBuildingIds
+                : []
+              : [],
           updatedAt: now,
           createdAt: now,
         },
@@ -86,7 +108,7 @@ export async function POST(request: Request) {
 
     await db.collection(COLLECTIONS.auditEvents).add({
       eventType: "membership.joined_by_invite",
-      actorId: decoded.uid,
+      actorId: actor.uid,
       entityType: "membership",
       entityId: membershipId,
       membershipId,
