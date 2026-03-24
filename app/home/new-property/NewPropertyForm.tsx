@@ -14,6 +14,7 @@ import {
 } from "@/app/lib/firebase/firestore";
 import type { OrganizationType } from "@/types/dorm";
 import { ORGANIZATION_TYPE_OPTIONS } from "@/lib/organizationDisplay";
+import { triggerOrganizationCreatedEmail } from "@/lib/email/triggerFromClient";
 
 function slugFromName(name: string): string {
   return name
@@ -141,6 +142,9 @@ export function NewPropertyForm() {
         updatedAt: now,
       });
       toast.success("Organization created.");
+      if (user) {
+        void triggerOrganizationCreatedEmail(user, organizationId).catch(() => {});
+      }
       router.push(`/admin/dashboard?organizationId=${encodeURIComponent(organizationId)}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");

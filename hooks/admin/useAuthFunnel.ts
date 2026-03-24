@@ -17,6 +17,7 @@ import {
   clearSessionCookie,
   getAuthErrorMessage,
 } from "@/lib/admin/adminAuth";
+import { triggerWelcomeEmail } from "@/lib/email/triggerFromClient";
 import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
 import type { AuthStep, AuthFunnelState, AuthFunnelActions } from "@/types/admin/authFunnel";
 
@@ -78,6 +79,9 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         setStep("checking-access");
         const isAdmin = await checkAdminAccess(user.uid);
         if (isAdmin) {
+          if (created) {
+            void triggerWelcomeEmail(user).catch(() => {});
+          }
           const token = await user.getIdToken();
           await setSessionCookie(token);
           router.push("/home/dashboard");

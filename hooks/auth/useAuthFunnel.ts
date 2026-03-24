@@ -12,6 +12,7 @@ import {
 } from "@/app/lib/firebase/auth";
 import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
 import { getRedirectPathForUser } from "@/lib/auth/redirectPath";
+import { triggerWelcomeEmail } from "@/lib/email/triggerFromClient";
 import { getAuthErrorMessage } from "@/lib/auth/authErrors";
 import type { AuthStep, AuthFunnelState, AuthFunnelActions } from "@/types/auth/authFunnel";
 
@@ -68,7 +69,10 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const postAuth = useCallback(
     async (user: import("firebase/auth").User) => {
       try {
-        const path = await getRedirectPathForUser(user);
+        const { path, isNewUser } = await getRedirectPathForUser(user);
+        if (isNewUser) {
+          void triggerWelcomeEmail(user).catch(() => {});
+        }
         router.push(path);
       } catch (err) {
         toast.error(getAuthErrorMessage(err));
