@@ -1,12 +1,21 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { FormEvent, RefObject } from "react";
 import { Shell, AnimateStep, BackButton, AuthInput, PrimaryButton } from "@/components/auth/ui";
 import { formatPhoneDisplay } from "@/lib/auth/phoneFormat";
-import type { AuthFunnelState, AuthFunnelActions } from "@/types/auth/authFunnel";
+import type { AuthStep } from "@/types/auth/authFunnel";
 
-type PhoneEntryProps = Pick<AuthFunnelState, "phone" | "loading" | "mode"> &
-  Pick<AuthFunnelActions, "setPhone" | "goTo" | "handleSendPhoneCode"> & { recaptchaContainerRef: RefObject<HTMLDivElement | null> };
+type PhoneAuthStep = AuthStep | "phone-entry" | "phone-otp";
+
+type PhoneEntryProps = {
+  phone: string;
+  loading: boolean;
+  mode: "signup" | "login";
+  setPhone: (v: string) => void;
+  goTo: (step: PhoneAuthStep) => void;
+  handleSendPhoneCode: (e: FormEvent) => void | Promise<void>;
+  recaptchaContainerRef: RefObject<HTMLDivElement | null>;
+};
 
 export function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSendPhoneCode, recaptchaContainerRef }: PhoneEntryProps) {
   return (
@@ -25,8 +34,17 @@ export function PhoneEntryStep({ phone, loading, mode, setPhone, goTo, handleSen
   );
 }
 
-type PhoneOtpProps = Pick<AuthFunnelState, "phone" | "otp" | "loading" | "resendCooldown"> &
-  Pick<AuthFunnelActions, "setOtp" | "goTo" | "handleVerifyOtp" | "handleResendCode"> & { recaptchaContainerRef: RefObject<HTMLDivElement | null> };
+type PhoneOtpProps = {
+  phone: string;
+  otp: string;
+  loading: boolean;
+  resendCooldown: number;
+  setOtp: (v: string) => void;
+  goTo: (step: PhoneAuthStep) => void;
+  handleVerifyOtp: (e: FormEvent) => void | Promise<void>;
+  handleResendCode: () => void | Promise<void>;
+  recaptchaContainerRef: RefObject<HTMLDivElement | null>;
+};
 
 export function PhoneOtpStep({ phone, otp, loading, resendCooldown, setOtp, goTo, handleVerifyOtp, handleResendCode, recaptchaContainerRef }: PhoneOtpProps) {
   return (

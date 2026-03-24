@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Baseline rule set: authenticated users can read/write evidence.
+    // Tighten path-level tenancy in later hardening passes.
+    match /inspections/{organizationId}/{inspectionId}/{allPaths=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

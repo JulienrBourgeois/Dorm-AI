@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/app/lib/firebase/admin";
 import { COLLECTIONS } from "@/app/lib/firebase/firestore";
+import { apiError, apiOk } from "@/lib/core/apiResponse";
+import { AppError } from "@/lib/core/errors";
+import { requireString } from "@/lib/core/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,22 +17,17 @@ type Body = { email?: string };
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
-    if (!email) {
-      return NextResponse.json({ exists: false }, { status: 400 });
-    }
+    const email = requireString(body?.email, "email", { minLength: 3, maxLength: 320 });
     const db = getAdminFirestore();
     const snapshot = await db
       .collection(COLLECTIONS.users)
       .where("email", "==", email)
       .limit(1)
       .get();
-    return NextResponse.json({ exists: !snapshot.empty });
+    return apiOk({ exists: !snapshot.empty });
   } catch (err) {
     console.error("[check-email]", err);
-    return NextResponse.json(
-      { error: "Failed to check email" },
-      { status: 500 }
-    );
+    if (err instanceof AppError) return apiError(err);
+    return apiError(new AppError("INTERNAL_ERROR", "Failed to check email", 500));
   }
 }

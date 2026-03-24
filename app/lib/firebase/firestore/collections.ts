@@ -3,7 +3,7 @@
  */
 export const COLLECTIONS = {
   users: "users",
-  universities: "universities",
+  organizations: "organizations",
   memberships: "memberships",
   inviteCodes: "inviteCodes",
   buildings: "buildings",
@@ -12,4 +12,5 @@ export const COLLECTIONS = {
   inspectionItems: "inspectionItems",
   media: "media",
   charges: "charges",
+  auditEvents: "auditEvents",
 } as const;

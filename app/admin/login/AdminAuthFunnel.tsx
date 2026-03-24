@@ -3,7 +3,6 @@
 import { useAuthFunnel } from "@/hooks/admin/useAuthFunnel";
 import { WelcomeStep, LoginChooserStep } from "@/components/admin/steps/WelcomeSteps";
 import { EmailSignUpStep, EmailLoginStep } from "@/components/admin/steps/EmailSteps";
-import { PhoneEntryStep, PhoneOtpStep } from "@/components/admin/steps/PhoneSteps";
 import { ForgotPasswordStep, ResetSentStep } from "@/components/admin/steps/ResetSteps";
 import { CheckingAccessStep, AccessDeniedStep } from "@/components/admin/steps/StatusSteps";
 
@@ -48,34 +47,6 @@ export function AdminAuthFunnel() {
           goTo={f.goTo}
           handleEmailSignUp={f.handleEmailSignUp}
           handleEmailSignIn={f.handleEmailSignIn}
-        />
-      );
-
-    case "phone-entry":
-      return (
-        <PhoneEntryStep
-          phone={f.phone}
-          loading={f.loading}
-          mode={f.mode}
-          setPhone={f.setPhone}
-          goTo={f.goTo}
-          handleSendPhoneCode={f.handleSendPhoneCode}
-          recaptchaContainerRef={f.recaptchaContainerRef}
-        />
-      );
-
-    case "phone-otp":
-      return (
-        <PhoneOtpStep
-          phone={f.phone}
-          otp={f.otp}
-          loading={f.loading}
-          resendCooldown={f.resendCooldown}
-          setOtp={f.setOtp}
-          goTo={f.goTo}
-          handleVerifyOtp={f.handleVerifyOtp}
-          handleResendCode={f.handleResendCode}
-          recaptchaContainerRef={f.recaptchaContainerRef}
         />
       );
 

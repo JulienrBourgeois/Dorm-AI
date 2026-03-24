@@ -12,7 +12,7 @@ export function WelcomeStep({ goTo, setMode }: Pick<AuthFunnelActions, "goTo" | 
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Dorm AI</h1>
         <p className="max-w-[320px] text-center text-base leading-relaxed text-secondary-alt dark:text-zinc-400">
-          Streamline inspections, catch damages early, and manage your properties — all in one place.
+          Streamline inspections, catch damages early, and manage your organizations — all in one place.
         </p>
         <div className="flex w-full flex-col gap-3 pt-2">
           <MethodButton icon={<MailIcon className="text-secondary" />} label="Sign up with email" onClick={() => { setMode("signup"); goTo("email-signup"); }} />

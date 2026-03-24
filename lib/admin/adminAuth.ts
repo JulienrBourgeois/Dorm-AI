@@ -1,5 +1,5 @@
 /**
- * Admin auth helpers: user upsert, admin access check, session cookie, error messages.
+ * Admin auth helpers: user upsert, admin access check, session sync, error messages.
  * Client-only; used by the admin login funnel after Firebase Auth completes.
  */
 import type { User } from "firebase/auth";
@@ -66,12 +66,32 @@ export async function checkAdminAccess(userId: string): Promise<boolean> {
   return !snapshot.empty;
 }
 
-export function setAuthCookie(token: string) {
-  document.cookie = `admin-session=${token}; path=/; max-age=3600; SameSite=Strict`;
+/**
+ * Sync Firebase Auth state to the server-managed `__session` cookie.
+ * Uses the same API route used by SessionCookieSync.
+ */
+export async function setSessionCookie(token: string): Promise<void> {
+  const res = await fetch("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+    credentials: "same-origin",
+  });
+  if (!res.ok) {
+    throw new Error("Unable to create session cookie");
+  }
 }
 
-export function clearAuthCookie() {
-  document.cookie = "admin-session=; path=/; max-age=0; SameSite=Strict";
+/**
+ * Clears the server-managed `__session` cookie.
+ */
+export async function clearSessionCookie(): Promise<void> {
+  await fetch("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clear: true }),
+    credentials: "same-origin",
+  });
 }
 
 const ERROR_MAP: Record<string, string> = {

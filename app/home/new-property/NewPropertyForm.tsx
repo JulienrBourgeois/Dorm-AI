@@ -41,7 +41,7 @@ export function NewPropertyForm() {
     }
     const trimmedName = name.trim();
     if (!trimmedName) {
-      toast.error("Please enter a property name.");
+      toast.error("Please enter an organization name.");
       return;
     }
     const slugVal = slug.trim() || slugFromName(trimmedName);
@@ -52,26 +52,26 @@ export function NewPropertyForm() {
     setSubmitting(true);
     try {
       const now = dateToTimestamp(new Date());
-      const ref = await addDocument(COLLECTIONS.universities, {
+      const ref = await addDocument(COLLECTIONS.organizations, {
         name: trimmedName,
         slug: slugVal,
         createdAt: now,
         updatedAt: now,
       });
-      const universityId = ref.id;
+      const organizationId = ref.id;
       await setDocument(
         COLLECTIONS.memberships,
-        `${user.uid}-${universityId}`,
+        `${user.uid}-${organizationId}`,
         {
           userId: user.uid,
-          universityId,
+          organizationId,
           role: "ADMIN",
           status: "ACTIVE",
           createdAt: now,
           updatedAt: now,
         }
       );
-      toast.success("Property created.");
+      toast.success("Organization created.");
       router.push("/admin/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
@@ -88,15 +88,15 @@ export function NewPropertyForm() {
         ← Back to dashboard
       </Link>
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-        Create new property
+        Create new organization
       </h1>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        Add a property (university / housing org) to manage.
+        Add an organization to your portfolio to manage.
       </p>
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
         <div>
           <label htmlFor="prop-name" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Property name
+            Organization name
           </label>
           <input
             id="prop-name"
@@ -127,7 +127,7 @@ export function NewPropertyForm() {
           disabled={submitting}
           className="h-12 rounded-xl bg-accent font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Creating…" : "Create property"}
+          {submitting ? "Creating…" : "Create organization"}
         </button>
       </form>
     </div>

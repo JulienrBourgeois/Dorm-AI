@@ -17,16 +17,16 @@ Collections live in the Firestore database selected by environment: **sandbox** 
 | Entity | Collection | Main FKs |
 |--------|------------|----------|
 | User | `users` | — |
-| University | `universities` | — |
-| Membership | `memberships` | userId, universityId |
-| Building | `buildings` | universityId |
-| Room | `rooms` | universityId, buildingId |
-| Inspection | `inspections` | universityId, roomId, inspectorId, createdBy |
+| Organization | `organizations` | — |
+| Membership | `memberships` | userId, organizationId |
+| Building | `buildings` | organizationId |
+| Room | `rooms` | organizationId, buildingId |
+| Inspection | `inspections` | organizationId, roomId, inspectorId, createdBy |
 | InspectionItem | `inspectionItems` | inspectionId |
 | Media | `media` | inspectionId, uploadedBy |
 | Charge | `charges` | inspectionId, createdBy |
 
-All collections are top-level. Document IDs are either Firebase Auth UID (users), auto-generated, or slug-based (e.g. universities) as needed.
+All collections are top-level. Document IDs are either Firebase Auth UID (users), auto-generated, or slug-based (e.g. organizations) as needed.
 
 ## Date fields and Firestore
 

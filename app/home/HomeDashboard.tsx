@@ -2,19 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
 import {
   getDocumentData,
   queryCollection,
   COLLECTIONS,
-  dateToTimestamp,
-  setDocument,
 } from "@/app/lib/firebase/firestore";
-import { auth } from "@/app/lib/firebase/app";
 import { where } from "firebase/firestore";
 import type { UserRole } from "@/types";
-import type { University } from "@/types/dorm";
+import type { Organization } from "@/types/dorm";
 import type { WithId } from "@/types";
 import { Loader } from "@/components/Loader";
 
@@ -26,22 +23,18 @@ interface UserDocData {
 
 interface MembershipDoc {
   userId: string;
-  universityId: string;
+  organizationId: string;
   role: string;
   status: string;
 }
 
-interface InviteCodeDoc {
-  universityId: string;
-  role: "INSPECTOR" | "TENANT";
-}
-
 export function HomeDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [guardReady, setGuardReady] = useState(false);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [properties, setProperties] = useState<WithId<University>[]>([]);
+  const [organizations, setOrganizations] = useState<WithId<Organization>[]>([]);
   const [joinCode, setJoinCode] = useState("");
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -65,18 +58,19 @@ export function HomeDashboard() {
 
       const snapshot = await queryCollection(
         COLLECTIONS.memberships,
-        where("userId", "==", user.uid)
+        where("userId", "==", user.uid),
+        where("status", "==", "ACTIVE"),
       );
-      const unis: WithId<University>[] = [];
+      const list: WithId<Organization>[] = [];
       for (const d of snapshot.docs) {
         const m = d.data() as MembershipDoc;
-        const { data: uni } = await getDocumentData<University>(
-          COLLECTIONS.universities,
-          m.universityId
+        const { data: org } = await getDocumentData<Organization>(
+          COLLECTIONS.organizations,
+          m.organizationId
         );
-        if (uni) unis.push({ ...uni, id: m.universityId });
+        if (org) list.push({ ...org, id: m.organizationId });
       }
-      setProperties(unis);
+      setOrganizations(list);
       setGuardReady(true);
     });
     return unsubscribe;
@@ -88,42 +82,30 @@ export function HomeDashboard() {
     if (!code) return;
     setJoinError(null);
     setJoinLoading(true);
-    const user = auth.currentUser;
-    if (!user) {
-      setJoinError("Session expired.");
-      setJoinLoading(false);
-      return;
-    }
     try {
-      const { data: codeDoc, exists } = await getDocumentData<InviteCodeDoc>(
-        COLLECTIONS.inviteCodes,
-        code
-      );
-      if (!exists || !codeDoc) {
-        setJoinError("Invalid or expired code.");
-        setJoinLoading(false);
-        return;
+      const response = await fetch("/api/auth/join-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const payload = (await response.json()) as
+        | { data?: { organizationId?: string } }
+        | { error?: { message?: string } };
+      if (!response.ok) {
+        const message =
+          "error" in payload ? payload.error?.message : undefined;
+        throw new Error(message || "Invalid or expired code.");
       }
-      const membershipId = `${user.uid}-${codeDoc.universityId}`;
-      const now = dateToTimestamp(new Date());
-      await setDocument(
-        COLLECTIONS.memberships,
-        membershipId,
-        {
-          userId: user.uid,
-          universityId: codeDoc.universityId,
-          role: codeDoc.role,
-          status: "ACTIVE",
-          createdAt: now,
-          updatedAt: now,
-        },
-        { merge: true }
+      const organizationId =
+        "data" in payload ? payload.data?.organizationId : undefined;
+      if (!organizationId) {
+        throw new Error("Invite joined but organization was not returned.");
+      }
+      const { data: org } = await getDocumentData<Organization>(
+        COLLECTIONS.organizations,
+        organizationId
       );
-      const { data: uni } = await getDocumentData<University>(
-        COLLECTIONS.universities,
-        codeDoc.universityId
-      );
-      if (uni) setProperties((p) => [...p, { ...uni, id: codeDoc.universityId }]);
+      if (org) setOrganizations((prev) => [...prev, { ...org, id: organizationId }]);
       setJoinCode("");
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : "Something went wrong.");
@@ -143,6 +125,7 @@ export function HomeDashboard() {
 
   const isManager = userRole === "property_manager";
   const firstName = userName.split(/\s+/)[0] || userName;
+  const deactivatedMembership = searchParams.get("status") === "deactivated";
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950">
@@ -173,20 +156,20 @@ export function HomeDashboard() {
               Hey {firstName},
             </h2>
             <p className="mb-8 text-zinc-600 dark:text-zinc-400">
-              Manage your properties or create a new one.
+              Manage your organizations or create a new one.
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {properties.map((uni) => (
+              {organizations.map((org) => (
                 <Link
-                  key={uni.id}
-                  href={`/manager/${uni.id}`}
+                  key={org.id}
+                  href={`/manager/${org.id}`}
                   className="flex flex-col rounded-2xl border-2 border-zinc-200 bg-white p-6 transition-all hover:border-accent hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-accent"
                 >
                   <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    {uni.name}
+                    {org.name}
                   </span>
                   <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    {uni.slug}
+                    {org.slug}
                   </span>
                 </Link>
               ))}
@@ -195,7 +178,7 @@ export function HomeDashboard() {
                 className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-6 text-zinc-500 transition-all hover:border-accent hover:bg-accent/5 hover:text-accent dark:border-zinc-600 dark:bg-zinc-900 dark:hover:border-accent"
               >
                 <span className="text-4xl leading-none">+</span>
-                <span className="mt-2 text-sm font-medium">Create new property</span>
+                <span className="mt-2 text-sm font-medium">Create new organization</span>
               </Link>
             </div>
           </>
@@ -204,14 +187,19 @@ export function HomeDashboard() {
             <h2 className="mb-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
               Hey {firstName},
             </h2>
+            {deactivatedMembership && (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                Your previous membership appears inactive. Join with a new invite code to regain access.
+              </div>
+            )}
             <p className="mb-8 text-zinc-600 dark:text-zinc-400">
-              Your portal. Pick a property to get started.
+              Your portal. Pick an organization to get started.
             </p>
 
-            {properties.length === 0 ? (
+            {organizations.length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
                 <p className="text-zinc-600 dark:text-zinc-400">
-                  You&apos;re not part of any property yet. Enter an invite code to join.
+                  You&apos;re not part of any organization yet. Enter an invite code to join.
                 </p>
                 <form
                   onSubmit={handleJoinWithCode}
@@ -242,17 +230,17 @@ export function HomeDashboard() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {properties.map((uni) => (
+                {organizations.map((org) => (
                   <Link
-                    key={uni.id}
+                    key={org.id}
                     href={userRole === "inspector" ? `/inspector` : `/tenant`}
                     className="flex flex-col rounded-2xl border-2 border-zinc-200 bg-white p-6 transition-all hover:border-accent hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-accent"
                   >
                     <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                      {uni.name}
+                      {org.name}
                     </span>
                     <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                      {uni.slug}
+                      {org.slug}
                     </span>
                   </Link>
                 ))}

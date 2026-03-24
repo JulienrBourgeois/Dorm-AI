@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 const NAV_ITEMS: Array<{ href: string; label: string }> = [
-  { href: "/admin", label: "Organization" },
+  { href: "/admin", label: "Organizations" },
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/tenants", label: "Tenants" },
   { href: "/admin/inspectors", label: "Inspectors" },
@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
           <div className="flex flex-1 items-center justify-end gap-3">
-            {/* Top navigation: org switcher, search, notifications, profile */}
+            {/* Top navigation: organization switcher, search, notifications, profile */}
             <div className="hidden items-center gap-2 md:flex">
               <select
                 className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-700 outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </select>
               <input
                 className="h-10 w-[260px] rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-accent dark:border-zinc-800 dark:bg-zinc-900 dark:placeholder:text-zinc-500"
-                placeholder="Search properties, tenants, inspections…"
+                placeholder="Search organizations, tenants, inspections…"
                 disabled
               />
               <button

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Dorm AI — Smart Dorm Inspections",
   description:
-    "Streamline dorm room inspections, catch damages early, and manage your properties with AI-powered tools.",
+    "Streamline dorm room inspections, catch damages early, and manage your organizations with AI-powered tools.",
 };
 
 function CheckIcon() {
@@ -22,15 +22,15 @@ const FEATURES = [
   "AI-generated inspection summaries",
   "Role-based access for admins, inspectors, and tenants",
   "Real-time transparency on damages and charges",
-  "Built for multi-campus scale from day one",
+  "Built for multi-organization scale from day one",
 ];
 const LOGOS = [
   {
-    name: "University of California, Berkeley",
+    name: "Berkeley Campus Housing",
     image: "/images/logos/berkeley.png",
   },
   {
-    name: "University of California, Los Angeles",
+    name: "Westwood Student Residences",
     image: "/images/logos/ucla.png",
   },
 ];

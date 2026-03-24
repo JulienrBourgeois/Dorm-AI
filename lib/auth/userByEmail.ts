@@ -12,10 +12,18 @@ export async function isUserExistsByEmail(email: string): Promise<boolean> {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    const message =
+      "error" in (data as object) &&
+      typeof (data as { error?: unknown }).error === "string"
+        ? (data as { error: string }).error
+        : (data as { error?: { message?: string } }).error?.message;
     throw new Error(
-      (data as { error?: string }).error ?? "Failed to check email"
+      message ?? "Failed to check email"
     );
   }
-  const data = (await res.json()) as { exists: boolean };
-  return data.exists;
+  const data = (await res.json()) as
+    | { exists: boolean }
+    | { data?: { exists?: boolean } };
+  if ("data" in data) return Boolean(data.data?.exists);
+  return Boolean(data.exists);
 }

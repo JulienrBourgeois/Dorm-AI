@@ -6,7 +6,8 @@ import { getRedirectPathForUid } from "@/lib/auth/redirectPathServer";
 const SESSION_COOKIE_NAME = "__session";
 
 /**
- * /home — redirect to the user's portal by role (inspector → /inspector, tenant → /tenant, else → /admin/dashboard).
+ * /home — redirect to the user's portal by role (inspector → /inspector, tenant → /tenant, else → /admin/dashboard),
+ * with fallback to /home/dashboard when no active role membership exists.
  * If no session, send to signup.
  */
 export default async function HomePage() {

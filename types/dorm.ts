@@ -14,6 +14,7 @@ export type InspectionStatus =
   | "IN_PROGRESS"
   | "COMPLETED"
   | "CANCELED";
+export type InspectionSummaryStatus = "NONE" | "UNDER_REVIEW" | "FINALIZED";
 export type InspectionItemResponse = "GOOD" | "FAIR" | "DAMAGED" | "NA";
 export type MediaType = "PHOTO" | "VIDEO" | "AUDIO";
 export type ChargeStatus =
@@ -42,7 +43,7 @@ export interface User {
   updatedAt: Date;
 }
 
-export interface University {
+export interface Organization {
   name: string;
   slug: string;
   createdAt: Date;
@@ -51,7 +52,7 @@ export interface University {
 
 export interface Membership {
   userId: string;
-  universityId: string;
+  organizationId: string;
   role: MembershipRole;
   status: MembershipStatus;
   createdAt: Date;
@@ -68,7 +69,7 @@ export interface Membership {
 }
 
 export interface Building {
-  universityId: string;
+  organizationId: string;
   name: string;
   code: string;
   address?: string;
@@ -77,7 +78,7 @@ export interface Building {
 }
 
 export interface Room {
-  universityId: string;
+  organizationId: string;
   buildingId: string;
   number: string;
   floor?: number;
@@ -87,7 +88,7 @@ export interface Room {
 }
 
 export interface Inspection {
-  universityId: string;
+  organizationId: string;
   roomId: string;
   inspectorId: string;
   type: InspectionType;
@@ -96,6 +97,13 @@ export interface Inspection {
   startedAt?: Date;
   completedAt?: Date;
   aiSummary?: string;
+  aiSummaryDraft?: string;
+  aiSummaryStatus?: InspectionSummaryStatus;
+  aiSummaryError?: string;
+  aiSummaryGeneratedAt?: Date;
+  aiSummaryGeneratedBy?: string;
+  aiSummaryFinalizedAt?: Date;
+  aiSummaryFinalizedBy?: string;
   roomLabel: string;
   tenantIds: string[];
   createdBy: string;
@@ -132,6 +140,21 @@ export interface Charge {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface AuditEvent {
+  eventType: string;
+  actorId: string;
+  entityType: "inspection" | "membership" | "summary";
+  entityId: string;
+  organizationId?: string;
+  inspectionId?: string;
+  membershipId?: string;
+  fromStatus?: string;
+  toStatus?: string;
+  source: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
 }
 
 // --- WithId: document with id (e.g. from Firestore snapshot) ---

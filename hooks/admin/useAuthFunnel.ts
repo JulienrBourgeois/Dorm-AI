@@ -13,8 +13,8 @@ import {
 import {
   upsertUserDoc,
   checkAdminAccess,
-  setAuthCookie,
-  clearAuthCookie,
+  setSessionCookie,
+  clearSessionCookie,
   getAuthErrorMessage,
 } from "@/lib/admin/adminAuth";
 import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
@@ -79,7 +79,7 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         const isAdmin = await checkAdminAccess(user.uid);
         if (isAdmin) {
           const token = await user.getIdToken();
-          setAuthCookie(token);
+          await setSessionCookie(token);
           router.push("/admin");
         } else {
           setStep("access-denied");
@@ -161,7 +161,7 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   }
 
   async function handleSignOutAndReset() {
-    clearAuthCookie();
+    await clearSessionCookie();
     await signOutUser();
     setEmail("");
     setPassword("");

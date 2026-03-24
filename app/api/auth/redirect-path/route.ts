@@ -1,19 +1,13 @@
-import { NextResponse } from "next/server";
 import { getAdminAuth } from "@/app/lib/firebase/admin";
+import { getSessionCookieFromRequest } from "@/lib/auth/session";
+import { apiOk } from "@/lib/core/apiResponse";
 import { getRedirectPathForUid } from "@/lib/auth/redirectPathServer";
-
-const SESSION_COOKIE_NAME = "__session";
 
 export async function GET(request: Request) {
   try {
-    const cookie = request.headers.get("cookie") ?? "";
-    const sessionCookie = cookie
-      .split(";")
-      .map((s) => s.trim())
-      .find((s) => s.startsWith(`${SESSION_COOKIE_NAME}=`));
-    const value = sessionCookie?.slice(SESSION_COOKIE_NAME.length + 1).trim();
+    const value = getSessionCookieFromRequest(request);
     if (!value) {
-      return NextResponse.json({ redirect: null });
+      return apiOk({ redirect: null });
     }
 
     const auth = getAdminAuth();
@@ -24,11 +18,11 @@ export async function GET(request: Request) {
 
     // If user is already on the target path, no redirect
     if (pathnameParam === path) {
-      return NextResponse.json({ redirect: null });
+      return apiOk({ redirect: null });
     }
 
-    return NextResponse.json({ redirect: path });
+    return apiOk({ redirect: path });
   } catch {
-    return NextResponse.json({ redirect: null });
+    return apiOk({ redirect: null });
   }
 }

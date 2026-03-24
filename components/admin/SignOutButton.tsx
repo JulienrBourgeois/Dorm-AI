@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { signOutUser } from "@/app/lib/firebase/auth";
-import { clearAuthCookie } from "@/lib/admin/adminAuth";
+import { clearSessionCookie } from "@/lib/admin/adminAuth";
 
 export function SignOutButton() {
   const router = useRouter();
 
   async function handleSignOut() {
-    // Clear any admin session cookie first (client-side only).
-    clearAuthCookie();
+    // Ensure middleware sees sign-out immediately.
+    await clearSessionCookie();
     await signOutUser();
     router.push("/");
   }

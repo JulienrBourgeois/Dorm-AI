@@ -2,7 +2,7 @@
 export type {
   User,
   UserRole,
-  University,
+  Organization,
   Membership,
   Building,
   Room,
@@ -15,7 +15,15 @@ export type {
   MembershipStatus,
   InspectionType,
   InspectionStatus,
+  InspectionSummaryStatus,
   InspectionItemResponse,
   MediaType,
   ChargeStatus,
+  AuditEvent,
 } from "./dorm";
+export type {
+  ApiSuccess,
+  ApiErrorBody,
+  ApiResult,
+  Paginated,
+} from "./api";

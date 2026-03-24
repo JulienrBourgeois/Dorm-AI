@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { NewPropertyForm } from "./NewPropertyForm";
 
 export const metadata: Metadata = {
-  title: "New property — Dorm AI",
-  description: "Create a new property.",
+  title: "New organization — Dorm AI",
+  description: "Create a new organization.",
 };
 
 export default function NewPropertyPage() {

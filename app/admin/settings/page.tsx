@@ -23,7 +23,7 @@ export default function SettingsPage() {
           <div className="mt-3 space-y-3 text-sm">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Name</div>
-              <div className="mt-1 font-semibold">University of California, Berkeley</div>
+              <div className="mt-1 font-semibold">North Campus Residences (sample)</div>
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Primary contact</div>

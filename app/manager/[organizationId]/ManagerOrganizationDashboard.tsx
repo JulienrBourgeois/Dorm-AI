@@ -3,23 +3,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getDocumentData, COLLECTIONS } from "@/app/lib/firebase/firestore";
-import type { University } from "@/types/dorm";
+import type { Organization } from "@/types/dorm";
 import { Loader } from "@/components/Loader";
 
-export function ManagerPropertyDashboard({
-  universityId: id,
+export function ManagerOrganizationDashboard({
+  organizationId: id,
 }: {
-  universityId: string;
+  organizationId: string;
 }) {
-  const [uni, setUni] = useState<University | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
 
   useEffect(() => {
-    getDocumentData<University>(COLLECTIONS.universities, id).then(({ data }) =>
-      setUni(data ?? null)
+    getDocumentData<Organization>(COLLECTIONS.organizations, id).then(({ data }) =>
+      setOrganization(data ?? null)
     );
   }, [id]);
 
-  if (!uni) {
+  if (!organization) {
     return <Loader fullPage />;
   }
 
@@ -37,11 +37,11 @@ export function ManagerPropertyDashboard({
       </header>
       <main className="mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          {uni.name}
+          {organization.name}
         </h1>
-        <p className="mt-1 text-zinc-500 dark:text-zinc-400">{uni.slug}</p>
+        <p className="mt-1 text-zinc-500 dark:text-zinc-400">{organization.slug}</p>
         <p className="mt-8 text-sm text-zinc-500 dark:text-zinc-400">
-          Dashboard for this property is coming next (buildings, rooms, inspections).
+          Dashboard for this organization is coming next (buildings, rooms, inspections).
         </p>
       </main>
     </div>

@@ -105,12 +105,12 @@ Only the route and page components live under `app/admin/login`; shared admin co
 | `app/admin/login/page.tsx` | Route entry point (Server Component with metadata). |
 | `app/admin/login/AdminAuthFunnel.tsx` | Client Component: orchestrator that renders the current step (imports hook + step components from root). |
 | `hooks/admin/useAuthFunnel.ts` | Hook: all auth state, handlers, post-auth flow. |
-| `lib/admin/adminAuth.ts` | Helpers: `upsertUserDoc`, `checkAdminAccess`, `setAuthCookie`/`clearAuthCookie`, `getAuthErrorMessage`. |
+| `lib/admin/adminAuth.ts` | Helpers: `upsertUserDoc`, `checkAdminAccess`, `setSessionCookie`/`clearSessionCookie`, `getAuthErrorMessage`. |
 | `types/admin/authFunnel.ts` | Types: `AuthStep`, `AuthFunnelState`, `AuthFunnelActions`. |
 | `components/admin/ui.tsx` | Shared UI: Shell, AnimateStep (cascaded slide-up), buttons, inputs, icons. |
 | `components/admin/steps/*.tsx` | Step screens: WelcomeSteps, EmailSteps, PhoneSteps, ResetSteps, StatusSteps. |
 | `app/styles/animations/slide-up.css` | Step and page slide-up animations; cascaded stagger so content animates top-to-bottom. |
-| `middleware.ts` | Protects `/admin/*` (except `/admin/login`). Redirects to login when `admin-session` cookie is missing. |
+| `middleware.ts` | Protects `/admin/*`. Redirects unauthenticated users to `/admin/login` using the `__session` cookie check. |
 
 ### UI and animations
 
@@ -126,7 +126,7 @@ The funnel uses cascaded slide-up animations: each step’s content (logo, title
 6. **Phone OTP** — 6-digit code input with 60-second resend cooldown.
 7. **Forgot password** — Email input, sends reset link via `sendPasswordReset()`.
 8. **Reset sent** — Confirmation with "Back to log in".
-9. **Post-auth** — Upserts user doc, queries `memberships` for `role: "ADMIN"` + `status: "ACTIVE"`. If admin: sets session cookie, redirects to `/admin`. If not: shows "Access denied" with sign-out.
+9. **Post-auth** — Upserts user doc, queries `memberships` for `role: "ADMIN"` + `status: "ACTIVE"`. If admin: sets `__session` via `/api/auth/session`, redirects to `/admin`. If not: shows "Access denied" with sign-out.
 
 ### Admin access
 
@@ -137,8 +137,8 @@ Anyone can sign up, but only users with an **active ADMIN membership** in Firest
 
 ### Route protection
 
-- **Middleware** (`middleware.ts`): lightweight cookie-presence check on `/admin/*` (except `/admin/login`). Redirects unauthenticated visitors to login.
-- **Client-side guard** (`AdminAuthFunnel.tsx`): after auth, verifies Firebase Auth state and admin membership. Sets/clears `admin-session` cookie.
+- **Middleware** (`middleware.ts`): checks `__session` on `/admin/*`, redirects unauthenticated users to `/admin/login`, and routes non-admin roles to their portal.
+- **Client-side guard** (`AdminAuthFunnel.tsx`): after auth, verifies Firebase Auth state and admin membership. Sets/clears `__session` via `/api/auth/session`.
 
 ## Official docs
 
