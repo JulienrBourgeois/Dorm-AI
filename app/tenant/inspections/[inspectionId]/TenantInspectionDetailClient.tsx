@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { where } from "firebase/firestore";
 import { BackLink } from "@/components/auth/ui";
-import { useRouter } from "next/navigation";
+import { tenantPortalHref } from "@/lib/portal/portalOrgNavigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 import {
@@ -58,6 +59,9 @@ export function TenantInspectionDetailClient({
   inspectionId: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const organizationId = searchParams.get("organizationId")?.trim() ?? "";
+  const tenantListHref = tenantPortalHref(organizationId);
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [inspection, setInspection] = useState<WithId<Inspection> | null>(null);
@@ -87,12 +91,12 @@ export function TenantInspectionDetailClient({
         );
         if (!data) {
           toast.error("Inspection not found.");
-          router.replace("/tenant");
+          router.replace(tenantListHref);
           return;
         }
         if (!data.tenantIds.includes(uid)) {
           toast.error("You do not have access to this inspection.");
-          router.replace("/tenant");
+          router.replace(tenantListHref);
           return;
         }
         setInspection({ ...data, id: inspectionId });
@@ -146,7 +150,7 @@ export function TenantInspectionDetailClient({
         setChecking(false);
       }
     },
-    [inspectionId, router],
+    [inspectionId, router, tenantListHref],
   );
 
   useEffect(() => {
@@ -162,43 +166,24 @@ export function TenantInspectionDetailClient({
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-        <div className="mx-auto max-w-5xl px-6 py-10">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-black dark:text-zinc-300">
-            Loading inspection detail...
-          </div>
-        </div>
+      <div className="flex h-[100dvh] items-center justify-center bg-zinc-50 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+        Loading inspection detail…
       </div>
     );
   }
 
   if (!inspection) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-        <div className="mx-auto max-w-5xl px-6 py-10">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-black dark:text-zinc-300">
-            Inspection unavailable.
-          </div>
-        </div>
+      <div className="flex h-[100dvh] items-center justify-center bg-zinc-50 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+        Inspection unavailable.
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8 lg:px-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-              Inspection detail
-            </h1>
-            <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              Room {roomLabel} - {buildingLabel}
-            </div>
-          </div>
-          <BackLink href="/tenant" aria-label="Back to portal" className="mb-0" />
-        </div>
-
+    <>
+      <div className="flex flex-col gap-6">
+        <BackLink href={tenantListHref} aria-label="Back to inspections" className="mb-0 w-fit shrink-0" />
         <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-black">
             <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -376,7 +361,7 @@ export function TenantInspectionDetailClient({
             )}
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

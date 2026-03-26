@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { where } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { logAuditEvent } from "@/app/lib/audit/logEvent";
-import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
-import { clearSessionCookie } from "@/lib/admin/adminAuth";
-import { AccountDrawer } from "@/components/account/AccountDrawer";
+import { subscribeToAuthState } from "@/app/lib/firebase/auth";
+import { useSetInspectorExecutionActive } from "@/components/portals/InspectorRuntimeContext";
+import { inspectorPortalHref } from "@/lib/portal/portalOrgNavigation";
 import { uploadFile } from "@/app/lib/firebase/storage";
 import {
   COLLECTIONS,
@@ -79,12 +78,14 @@ function sanitizeFileName(name: string): string {
 
 export function InspectorExecutionClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const organizationId = searchParams.get("organizationId")?.trim() ?? "";
+  const setExecutionActive = useSetInspectorExecutionActive();
   const [view, setView] = useState<RunnerView>("queue");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string>("");
   const [inspectorName, setInspectorName] = useState<string>("");
-  const [accountEmail, setAccountEmail] = useState("");
   const [inspections, setInspections] = useState<InspectionRecord[]>([]);
   const [activeInspectionId, setActiveInspectionId] = useState<string | null>(null);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
@@ -116,11 +117,18 @@ export function InspectorExecutionClient() {
   const progressPct = allChecklistItems.length ? Math.round((completedCount / allChecklistItems.length) * 100) : 0;
 
   const loadInspections = useCallback(
-    async (uid: string) => {
+    async (uid: string, orgId: string) => {
       setLoading(true);
       try {
+        const inspectionQuery = orgId
+          ? queryCollection(
+              COLLECTIONS.inspections,
+              where("inspectorId", "==", uid),
+              where("organizationId", "==", orgId),
+            )
+          : queryCollection(COLLECTIONS.inspections, where("inspectorId", "==", uid));
         const [inspectionSnap, userDoc] = await Promise.all([
-          queryCollection(COLLECTIONS.inspections, where("inspectorId", "==", uid)),
+          inspectionQuery,
           getDocumentData<User>(COLLECTIONS.users, uid),
         ]);
 
@@ -148,6 +156,10 @@ export function InspectorExecutionClient() {
     [],
   );
 
+  function replaceInspectorUrl(nextView: "queue" | "review" | "settings") {
+    router.replace(inspectorPortalHref(organizationId, nextView), { scroll: false });
+  }
+
   const hydrateRunnerFromInspectionItems = useCallback(async (inspectionId: string) => {
     const itemSnap = await queryCollection(COLLECTIONS.inspectionItems, where("inspectionId", "==", inspectionId));
     const itemRows = itemSnap.docs.map((doc) => ({ ...(doc.data() as InspectionItem), id: doc.id })) as InspectionItemRecord[];
@@ -171,11 +183,33 @@ export function InspectorExecutionClient() {
     const unsub = subscribeToAuthState(async (user) => {
       if (!user) return;
       setUserId(user.uid);
-      setAccountEmail(user.email ?? "");
-      await loadInspections(user.uid);
+      await loadInspections(user.uid, organizationId);
     });
     return unsub;
-  }, [loadInspections]);
+  }, [loadInspections, organizationId]);
+
+  useEffect(() => {
+    setActiveInspectionId(null);
+    setView("queue");
+  }, [organizationId]);
+
+  useEffect(() => {
+    const raw = searchParams.get("view");
+    if (raw === "review" || raw === "settings") {
+      setView(raw);
+      setActiveInspectionId(null);
+      return;
+    }
+    setView((prev) => (prev === "execution" ? prev : "queue"));
+    if (raw === "queue" || raw === null) {
+      setActiveInspectionId(null);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!setExecutionActive) return;
+    setExecutionActive(view === "execution");
+  }, [view, setExecutionActive]);
 
   async function startOrResumeInspection(inspection: InspectionRecord) {
     try {
@@ -186,24 +220,13 @@ export function InspectorExecutionClient() {
           startedAt: dateToTimestamp(new Date()),
           updatedAt: dateToTimestamp(new Date()),
         });
-        await logAuditEvent({
-          eventType: "inspection.status.changed",
-          actorId: userId || inspection.inspectorId,
-          entityType: "inspection",
-          entityId: inspection.id,
-          inspectionId: inspection.id,
-          organizationId: inspection.organizationId,
-          fromStatus: "SCHEDULED",
-          toStatus: "IN_PROGRESS",
-          source: "inspector.execution",
-        });
       }
       setActiveInspectionId(inspection.id);
       setActiveSectionIdx(0);
       setView("execution");
       await hydrateRunnerFromInspectionItems(inspection.id);
       setSelectedFiles([]);
-      await loadInspections(userId);
+      await loadInspections(userId, organizationId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start inspection.");
     } finally {
@@ -282,7 +305,7 @@ export function InspectorExecutionClient() {
         updatedAt: dateToTimestamp(new Date()),
       });
       toast.success("Progress saved.");
-      await loadInspections(userId);
+      await loadInspections(userId, organizationId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save progress.");
     } finally {
@@ -301,39 +324,19 @@ export function InspectorExecutionClient() {
         completedAt: dateToTimestamp(new Date()),
         updatedAt: dateToTimestamp(new Date()),
       });
-      await logAuditEvent({
-        eventType: "inspection.status.changed",
-        actorId: userId || activeInspection.inspectorId,
-        entityType: "inspection",
-        entityId: activeInspection.id,
-        inspectionId: activeInspection.id,
-        organizationId: activeInspection.organizationId,
-        fromStatus: "IN_PROGRESS",
-        toStatus: "COMPLETED",
-        source: "inspector.execution",
-      });
       setLastReviewMessage(`Inspection ${activeInspection.id} submitted at ${new Date().toLocaleString()}.`);
       setActiveInspectionId(null);
       setCheckedMap({});
       setNotes("");
       setView("review");
+      replaceInspectorUrl("review");
       toast.success("Inspection completed.");
-      await loadInspections(userId);
+      await loadInspections(userId, organizationId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to complete inspection.");
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleSignOut() {
-    try {
-      await clearSessionCookie();
-    } catch {
-      /* ignore */
-    }
-    await signOutUser();
-    router.push("/");
   }
 
   function handleFilesChange(e: ChangeEvent<HTMLInputElement>) {
@@ -342,58 +345,7 @@ export function InspectorExecutionClient() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-black/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-sm">
-              <span className="text-xs font-bold text-white">I</span>
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{inspectorName || "Inspector Portal"}</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                {view === "queue" ? "Inspections Queue" : view === "execution" ? "Inspection Execution" : view === "review" ? "Review" : "Settings"}
-              </div>
-            </div>
-          </div>
-          <AccountDrawer
-            displayName={inspectorName && inspectorName !== "Inspector" ? inspectorName : undefined}
-            email={accountEmail || undefined}
-            shortcuts={[
-              { href: "/home/dashboard", label: "Home" },
-              { href: "/settings", label: "Settings" },
-            ]}
-            onSignOut={handleSignOut}
-            triggerClassName="border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-6 lg:px-10">
-        <div className="mb-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setView("queue")}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold ${view === "queue" ? "border-primary bg-primary text-white" : "border-zinc-200 bg-white text-zinc-700 dark:border-zinc-800 dark:bg-black dark:text-zinc-200"}`}
-          >
-            Queue
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("review")}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold ${view === "review" ? "border-primary bg-primary text-white" : "border-zinc-200 bg-white text-zinc-700 dark:border-zinc-800 dark:bg-black dark:text-zinc-200"}`}
-          >
-            Review
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("settings")}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold ${view === "settings" ? "border-primary bg-primary text-white" : "border-zinc-200 bg-white text-zinc-700 dark:border-zinc-800 dark:bg-black dark:text-zinc-200"}`}
-          >
-            Settings
-          </button>
-        </div>
-
+    <>
         {view === "queue" && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
             <div className="flex items-center justify-between gap-3">
@@ -557,7 +509,6 @@ export function InspectorExecutionClient() {
             </p>
           </section>
         )}
-      </main>
-    </div>
+    </>
   );
 }

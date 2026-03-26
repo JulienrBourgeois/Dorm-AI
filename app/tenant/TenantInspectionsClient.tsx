@@ -3,11 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { where } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
-import { clearSessionCookie } from "@/lib/admin/adminAuth";
-import { AccountDrawer } from "@/components/account/AccountDrawer";
+import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 import {
   COLLECTIONS,
   getDocumentData,
@@ -57,11 +55,12 @@ function statusPillClass(status: InspectionStatus) {
 
 export function TenantInspectionsClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const organizationId = searchParams.get("organizationId")?.trim() ?? "";
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState("");
   const [tenantName, setTenantName] = useState("Tenant");
-  const [accountEmail, setAccountEmail] = useState("");
   const [organizationName, setOrganizationName] = useState("—");
   const [roomLabel, setRoomLabel] = useState("—");
   const [inspections, setInspections] = useState<InspectionRow[]>([]);
@@ -95,7 +94,16 @@ export function TenantInspectionsClient() {
       ]);
 
       setTenantName(userDoc.data?.name || "Tenant");
-      const activeMembership = membershipSnap.docs[0]?.data() as Membership | undefined;
+      const tenantMemberships = membershipSnap.docs
+        .map((d) => d.data() as Membership)
+        .filter((m) => m.role === "TENANT" && m.status === "ACTIVE");
+      let activeMembership: Membership | undefined;
+      if (organizationId) {
+        activeMembership = tenantMemberships.find((m) => m.organizationId === organizationId);
+      }
+      if (!activeMembership) {
+        activeMembership = tenantMemberships[0];
+      }
       if (activeMembership) {
         const [orgDoc, roomDoc] = await Promise.all([
           getDocumentData<Organization>(COLLECTIONS.organizations, activeMembership.organizationId),
@@ -129,6 +137,9 @@ export function TenantInspectionsClient() {
           }
         }
 
+        if (organizationId && inspection.organizationId !== organizationId) {
+          continue;
+        }
         rows.push({
           ...inspection,
           id: doc.id,
@@ -150,76 +161,50 @@ export function TenantInspectionsClient() {
       setLoading(false);
       setChecking(false);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthState(async (user) => {
+    const unsubscribe = subscribeToAuthState((user) => {
       if (!user) {
         router.replace("/signup?step=login-chooser");
         return;
       }
       setUserId(user.uid);
-      setAccountEmail(user.email ?? "");
-      await refreshTenantData(user.uid);
     });
     return unsubscribe;
-  }, [refreshTenantData, router]);
+  }, [router]);
 
-  async function handleSignOut() {
-    try {
-      await clearSessionCookie();
-    } catch {
-      /* ignore */
-    }
-    await signOutUser();
-    router.push("/");
-  }
+  useEffect(() => {
+    if (!userId) return;
+    void refreshTenantData(userId);
+  }, [userId, organizationId, refreshTenantData]);
+
+  const inspectionDetailSuffix = organizationId
+    ? `?organizationId=${encodeURIComponent(organizationId)}`
+    : "";
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-        <div className="mx-auto max-w-5xl px-6 py-10">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-black dark:text-zinc-300">
-            Loading tenant portal...
-          </div>
-        </div>
+      <div className="flex h-[100dvh] items-center justify-center bg-zinc-50 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+        Loading tenant portal…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
-          <div>
-            <div className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-              Tenant inspections
-            </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">
-              {tenantName} - {organizationName}
-            </div>
-          </div>
-          <AccountDrawer
-            displayName={tenantName !== "Tenant" ? tenantName : undefined}
-            email={accountEmail || undefined}
-            shortcuts={[
-              { href: "/home/dashboard", label: "Home" },
-              { href: "/settings", label: "Settings" },
-            ]}
-            onSignOut={handleSignOut}
-            triggerClassName="border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          />
-        </div>
-      </header>
-
-      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8 lg:px-10">
+    <>
+      <div className="flex flex-col gap-6">
         <section className="rounded-2xl border border-sky-200 bg-sky-50/40 p-5 dark:border-sky-900/40 dark:bg-sky-950/20">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                 Your inspection timeline
               </h1>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {tenantName}
+                {organizationName !== "—" ? ` · ${organizationName}` : ""}
+              </p>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
                 View scheduled and completed inspections, checklist outcomes, and
                 uploaded evidence.
               </p>
@@ -260,7 +245,7 @@ export function TenantInspectionsClient() {
                     {inspection.status}
                   </span>
                   <Link
-                    href={`/tenant/inspections/${inspection.id}`}
+                    href={`/tenant/inspections/${inspection.id}${inspectionDetailSuffix}`}
                     className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
                   >
                     Open detail
@@ -322,7 +307,7 @@ export function TenantInspectionsClient() {
                     </td>
                     <td className="px-4 py-4">
                       <Link
-                        href={`/tenant/inspections/${inspection.id}`}
+                        href={`/tenant/inspections/${inspection.id}${inspectionDetailSuffix}`}
                         className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
                       >
                         View report
@@ -349,7 +334,7 @@ export function TenantInspectionsClient() {
             </p>
           ) : null}
         </section>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

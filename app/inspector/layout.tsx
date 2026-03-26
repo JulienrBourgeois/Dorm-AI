@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { InspectorRuntimeProvider } from "@/components/portals/InspectorRuntimeContext";
+import { InspectorSidebarNav } from "@/components/portals/InspectorSidebarNav";
+import { UnifiedAppShell } from "@/components/portals/UnifiedAppShell";
 import { InspectorPortalAuthGate } from "./InspectorPortalAuthGate";
 
 export const metadata: Metadata = {
@@ -11,5 +14,13 @@ export default function InspectorLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <InspectorPortalAuthGate>{children}</InspectorPortalAuthGate>;
+  return (
+    <InspectorPortalAuthGate>
+      <InspectorRuntimeProvider>
+        <UnifiedAppShell portal="inspector" sidebar={<InspectorSidebarNav />}>
+          {children}
+        </UnifiedAppShell>
+      </InspectorRuntimeProvider>
+    </InspectorPortalAuthGate>
+  );
 }

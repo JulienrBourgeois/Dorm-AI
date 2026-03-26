@@ -93,11 +93,5 @@ service cloud.firestore {
     match /charges/{chargeId} {
       allow read, write: if signedIn();
     }
-
-    match /auditEvents/{eventId} {
-      allow create: if signedIn();
-      allow read: if signedIn();
-      allow update, delete: if false;
-    }
   }
 }

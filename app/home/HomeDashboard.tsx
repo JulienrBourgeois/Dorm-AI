@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { auth } from "@/app/lib/firebase/app";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
 import {
@@ -34,7 +35,6 @@ type OrgAccess = WithId<Organization> & { membershipRole: string };
 
 export function HomeDashboard() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [guardReady, setGuardReady] = useState(false);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -93,9 +93,17 @@ export function HomeDashboard() {
     setJoinError(null);
     setJoinLoading(true);
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("You need to be signed in to use an invite code.");
+      }
+      const token = await user.getIdToken();
       const response = await fetch("/api/auth/join-invite", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ code }),
       });
       const payload = (await response.json()) as
@@ -155,7 +163,6 @@ export function HomeDashboard() {
   }
 
   const firstName = userName.split(/\s+/)[0] || userName;
-  const deactivatedMembership = searchParams.get("status") === "deactivated";
 
   function hrefForAccess(entry: OrgAccess): string {
     if (entry.membershipRole === "ADMIN") {
@@ -208,12 +215,6 @@ export function HomeDashboard() {
               Hey {firstName},{" "}
               <span className="text-accent">welcome back.</span>
             </h1>
-
-            {deactivatedMembership && (
-              <div className="mt-6 w-full max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200 lg:text-left">
-                Your access looks inactive. Enter a fresh invite code to reconnect.
-              </div>
-            )}
 
             <div className="mt-10 grid w-full gap-4 md:grid-cols-2 md:items-stretch md:gap-5 lg:mt-12">
               <Link

@@ -1,24 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppBrandReload } from "@/components/AppBrandReload";
-import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
+import { signOutUser } from "@/app/lib/firebase/auth";
 import { AccountDrawer } from "@/components/account/AccountDrawer";
+import { useAuthAccountProfile } from "@/hooks/auth/useAuthAccountProfile";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
 
 export function NewPropertyHeader() {
   const router = useRouter();
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    const unsub = subscribeToAuthState((user) => {
-      setDisplayName(user?.displayName?.trim() ?? "");
-      setEmail(user?.email ?? "");
-    });
-    return unsub;
-  }, []);
+  const { displayName, email } = useAuthAccountProfile();
 
   async function onSignOut() {
     await clearSessionCookie();

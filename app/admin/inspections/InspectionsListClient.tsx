@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { where } from "firebase/firestore";
 import { toast } from "sonner";
-import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
   getDocumentData,
@@ -13,6 +12,18 @@ import {
   updateDocument,
   dateToTimestamp,
 } from "@/app/lib/firebase/firestore";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import {
+  adminCardTableWrapClass,
+  adminEmptyStateClass,
+  adminFilterLabelClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnClass,
+  adminSecondaryBtnClass,
+  adminTableHeaderRowClass,
+} from "@/components/admin/adminConsolePrimitives";
 import type { Building, Inspection, InspectionStatus, InspectionType, Room, User, WithId } from "@/types";
 
 type InspectorMembershipDoc = {
@@ -134,6 +145,43 @@ export function InspectionsListClient() {
     void refresh();
   }, [refresh]);
 
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All statuses" },
+      { value: "SCHEDULED", label: "Scheduled" },
+      { value: "IN_PROGRESS", label: "In progress" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELED", label: "Canceled" },
+    ],
+    [],
+  );
+
+  const typeFilterOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All types" },
+      { value: "MOVE_IN", label: "Move-in" },
+      { value: "ROUTINE", label: "Routine" },
+      { value: "MOVE_OUT", label: "Move-out" },
+    ],
+    [],
+  );
+
+  const buildingFilterOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All buildings" },
+      ...buildings.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` })),
+    ],
+    [buildings],
+  );
+
+  const inspectorFilterOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All inspectors" },
+      ...inspectors.map((i) => ({ value: i.userId, label: i.name })),
+    ],
+    [inspectors],
+  );
+
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
       if (statusFilter !== "ALL" && row.status !== statusFilter) return false;
@@ -161,17 +209,6 @@ export function InspectionsListClient() {
         payload.completedAt = null;
       }
       await updateDocument(COLLECTIONS.inspections, row.id, payload);
-      await logAuditEvent({
-        eventType: "inspection.status.changed",
-        actorId: row.createdBy || "admin",
-        entityType: "inspection",
-        entityId: row.id,
-        inspectionId: row.id,
-        organizationId: row.organizationId,
-        fromStatus: row.status,
-        toStatus: next,
-        source: "admin.inspections.list",
-      });
       toast.success(`Inspection moved to ${next}.`);
       await refresh();
     } catch (err) {
@@ -183,7 +220,7 @@ export function InspectionsListClient() {
 
   if (!organizationId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className={adminEmptyStateClass}>
         Go to{" "}
         <Link href="/home/dashboard" className="font-semibold underline">
           home
@@ -194,90 +231,77 @@ export function InspectionsListClient() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className={adminPageSectionClass}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Inspections</h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <h1 className={adminPageTitleClass}>Inspections</h1>
+          <p className={adminPageDescClass}>
             Schedule, track, and transition inspection states for the selected organization.
           </p>
         </div>
         <Link
           href={`/admin/inspections/schedule?organizationId=${organizationId}`}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+          className={`${adminPrimaryBtnClass} w-full shrink-0 sm:w-auto`}
         >
           + Schedule inspection
         </Link>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Filter: status</div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "ALL" | InspectionStatus)}
-            className="mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="ALL">All</option>
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="IN_PROGRESS">In progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELED">Canceled</option>
-          </select>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className={`${adminCardTableWrapClass} p-4`}>
+          <div className={adminFilterLabelClass}>Status</div>
+          <div className="mt-2">
+            <AdminSelect
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as "ALL" | InspectionStatus)}
+              options={statusFilterOptions}
+              aria-label="Filter by status"
+            />
+          </div>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Filter: type</div>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as "ALL" | InspectionType)}
-            className="mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="ALL">All</option>
-            <option value="MOVE_IN">Move-in</option>
-            <option value="ROUTINE">Routine</option>
-            <option value="MOVE_OUT">Move-out</option>
-          </select>
+        <div className={`${adminCardTableWrapClass} p-4`}>
+          <div className={adminFilterLabelClass}>Type</div>
+          <div className="mt-2">
+            <AdminSelect
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(v as "ALL" | InspectionType)}
+              options={typeFilterOptions}
+              aria-label="Filter by type"
+            />
+          </div>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Filter: building</div>
-          <select
-            value={buildingFilter}
-            onChange={(e) => setBuildingFilter(e.target.value)}
-            className="mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="ALL">All</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.code} - {b.name}
-              </option>
-            ))}
-          </select>
+        <div className={`${adminCardTableWrapClass} p-4`}>
+          <div className={adminFilterLabelClass}>Building</div>
+          <div className="mt-2">
+            <AdminSelect
+              value={buildingFilter}
+              onChange={setBuildingFilter}
+              options={buildingFilterOptions}
+              aria-label="Filter by building"
+            />
+          </div>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Filter: inspector</div>
-          <select
-            value={inspectorFilter}
-            onChange={(e) => setInspectorFilter(e.target.value)}
-            className="mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="ALL">All</option>
-            {inspectors.map((i) => (
-              <option key={i.userId} value={i.userId}>
-                {i.name}
-              </option>
-            ))}
-          </select>
+        <div className={`${adminCardTableWrapClass} p-4`}>
+          <div className={adminFilterLabelClass}>Inspector</div>
+          <div className="mt-2">
+            <AdminSelect
+              value={inspectorFilter}
+              onChange={setInspectorFilter}
+              options={inspectorFilterOptions}
+              aria-label="Filter by inspector"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
-          Inspection Table
+      <div className={adminCardTableWrapClass}>
+        <div className="border-b border-zinc-200 px-5 py-4 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
+          All inspections
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[920px] w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+              <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Room</th>
                 <th className="px-4 py-3">Inspector</th>
                 <th className="px-4 py-3">Type</th>
@@ -310,7 +334,7 @@ export function InspectionsListClient() {
                     <div className="flex flex-wrap gap-2">
                       <Link
                         href={`/admin/inspections/${row.id}?organizationId=${organizationId}`}
-                        className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                        className={adminSecondaryBtnClass}
                       >
                         Open detail
                       </Link>
@@ -319,7 +343,7 @@ export function InspectionsListClient() {
                           type="button"
                           onClick={() => void setStatus(row, "IN_PROGRESS")}
                           disabled={saving}
-                          className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                          className={adminSecondaryBtnClass}
                         >
                           Start
                         </button>
@@ -329,7 +353,7 @@ export function InspectionsListClient() {
                           type="button"
                           onClick={() => void setStatus(row, "CANCELED")}
                           disabled={saving}
-                          className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                          className={adminSecondaryBtnClass}
                         >
                           Cancel
                         </button>

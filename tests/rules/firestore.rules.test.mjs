@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 let testEnv;
 
@@ -60,24 +60,4 @@ test("tenant assigned to inspection can read it", async () => {
 test("unrelated users cannot read inspections", async () => {
   const strangerDb = testEnv.authenticatedContext("stranger-user").firestore();
   await assertFails(getDoc(doc(strangerDb, "inspections", "insp-2")));
-});
-
-test("audit events are append-only", async () => {
-  const userDb = testEnv.authenticatedContext("admin-1").firestore();
-  const eventRef = doc(userDb, "auditEvents", "event-1");
-  await assertSucceeds(
-    setDoc(eventRef, {
-      eventType: "inspection.status.changed",
-      actorId: "admin-1",
-      entityType: "inspection",
-      entityId: "insp-2",
-      source: "rules-test",
-      createdAt: new Date(),
-    }),
-  );
-  await assertFails(
-    updateDoc(eventRef, {
-      eventType: "tampered",
-    }),
-  );
 });

@@ -15,11 +15,9 @@ export async function GET(request: Request) {
     const pathnameParam = new URL(request.url).searchParams.get("pathname") ?? "/";
     const path = await getRedirectPathForUid(decoded.uid, pathnameParam);
 
-    // If user is already on the target path, no redirect
-    if (pathnameParam === path) {
-      return apiOk({ redirect: null });
-    }
-
+    // Always return the resolved path when the session is valid. Returning `null` here when
+    // `pathnameParam === path` breaks middleware: it treats `null` as "deny access", so users
+    // who are correctly allowed on /inspector or /tenant were redirected to home as "deactivated".
     return apiOk({ redirect: path });
   } catch {
     return apiOk({ redirect: null });

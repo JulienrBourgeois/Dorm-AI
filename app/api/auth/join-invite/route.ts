@@ -45,9 +45,21 @@ function isInviteExpired(doc: InviteCodeDoc): boolean {
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.trim().startsWith("Bearer ")) {
+      throw new AppError(
+        "UNAUTHORIZED",
+        "Not signed in. Sign in first, then paste your invite code on the home page or open your invite link.",
+        401,
+      );
+    }
     const actor = await verifyFirebaseBearer(request);
     if (!actor) {
-      throw new AppError("UNAUTHORIZED", "Invalid or missing token", 401);
+      throw new AppError(
+        "UNAUTHORIZED",
+        "Could not verify your login. Try signing out and signing in again. Your account must include an email address on the sign-in provider.",
+        401,
+      );
     }
 
     const body = (await request.json()) as Body;
@@ -105,18 +117,6 @@ export async function POST(request: Request) {
         },
         { merge: true },
       );
-
-    await db.collection(COLLECTIONS.auditEvents).add({
-      eventType: "membership.joined_by_invite",
-      actorId: actor.uid,
-      entityType: "membership",
-      entityId: membershipId,
-      membershipId,
-      organizationId: invite.organizationId,
-      source: "api.auth.join-invite",
-      metadata: { inviteCode: code, role: invite.role },
-      createdAt: now,
-    });
 
     return apiOk({
       membershipId,

@@ -13,6 +13,20 @@ import {
   queryCollection,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import {
+  adminCardClass,
+  adminCardTableWrapClass,
+  adminEmptyStateClass,
+  adminInputClass,
+  adminInputTableClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnCompactClass,
+  adminSecondaryBtnClass,
+  adminTableHeaderRowClass,
+} from "@/components/admin/adminConsolePrimitives";
 import type { Building, Room, WithId } from "@/types";
 
 type RoomForm = {
@@ -86,6 +100,28 @@ export function RoomsCrudClient() {
     for (const b of buildings) map[b.id] = b;
     return map;
   }, [buildings]);
+
+  const buildingSelectOptions = useMemo(
+    () =>
+      buildings.map((b) => ({
+        value: b.id,
+        label: `${b.code} — ${b.name}`,
+      })),
+    [buildings],
+  );
+
+  const createBuildingOptions = useMemo(
+    () => [
+      { value: "", label: "Select building" },
+      ...buildings.map((b) => ({ value: b.id, label: `${b.code} — ${b.name}` })),
+    ],
+    [buildings],
+  );
+
+  const filterBuildingOptions = useMemo(
+    () => [{ value: "", label: "All buildings" }, ...buildingSelectOptions],
+    [buildingSelectOptions],
+  );
 
   const filteredRooms = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -200,7 +236,7 @@ export function RoomsCrudClient() {
 
   if (!organizationId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className={adminEmptyStateClass}>
         Go to{" "}
         <Link href="/home/dashboard" className="font-semibold underline">
           home
@@ -211,87 +247,74 @@ export function RoomsCrudClient() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className={adminPageSectionClass}>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Rooms
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <h1 className={adminPageTitleClass}>Rooms</h1>
+        <p className={adminPageDescClass}>
           Organization-scoped room inventory with live create, edit, and delete actions.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className={adminCardClass}>
         <div className="grid gap-3 md:grid-cols-5">
-          <select
+          <AdminSelect
             value={createForm.buildingId}
-            onChange={(e) => setCreateForm((s) => ({ ...s, buildingId: e.target.value }))}
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="" disabled>Select building</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.code} - {b.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setCreateForm((s) => ({ ...s, buildingId: v }))}
+            options={createBuildingOptions}
+            disabled={buildings.length === 0}
+            aria-label="Building for new room"
+          />
           <input
             value={createForm.number}
             onChange={(e) => setCreateForm((s) => ({ ...s, number: e.target.value }))}
             placeholder="Room number (e.g. 2B-105)"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <input
             value={createForm.floor}
             onChange={(e) => setCreateForm((s) => ({ ...s, floor: e.target.value }))}
             placeholder="Floor (optional)"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <input
             value={createForm.capacity}
             onChange={(e) => setCreateForm((s) => ({ ...s, capacity: e.target.value }))}
             placeholder="Capacity"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <button
             type="button"
             onClick={() => void handleCreateRoom()}
             disabled={saving || buildings.length === 0}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+            className={`${adminPrimaryBtnCompactClass} w-full md:w-auto`}
           >
             + Create room
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
-          Room Inventory
+      <div className={adminCardTableWrapClass}>
+        <div className="border-b border-zinc-200 px-5 py-4 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
+          Room inventory
         </div>
-        <div className="grid gap-3 p-4 md:grid-cols-2">
+        <div className="grid gap-3 p-4 sm:p-5 md:grid-cols-2">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by room number, building code/name..."
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            placeholder="Search by room number, building…"
+            className={adminInputClass}
           />
-          <select
+          <AdminSelect
             value={buildingFilter}
-            onChange={(e) => setBuildingFilter(e.target.value)}
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="">All buildings</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.code} - {b.name}
-              </option>
-            ))}
-          </select>
+            onChange={setBuildingFilter}
+            options={filterBuildingOptions}
+            aria-label="Filter by building"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[960px] w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+              <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Room</th>
                 <th className="px-4 py-3">Building</th>
                 <th className="px-4 py-3">Floor</th>
@@ -312,7 +335,7 @@ export function RoomsCrudClient() {
                         <input
                           value={editForm.number}
                           onChange={(e) => setEditForm((s) => ({ ...s, number: e.target.value }))}
-                          className="h-9 w-40 rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-40`}
                         />
                       ) : (
                         room.number
@@ -320,17 +343,13 @@ export function RoomsCrudClient() {
                     </td>
                     <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">
                       {isEditing ? (
-                        <select
+                        <AdminSelect
+                          size="sm"
                           value={editForm.buildingId}
-                          onChange={(e) => setEditForm((s) => ({ ...s, buildingId: e.target.value }))}
-                          className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
-                        >
-                          {buildings.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.code} - {b.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => setEditForm((s) => ({ ...s, buildingId: v }))}
+                          options={buildingSelectOptions}
+                          aria-label="Building"
+                        />
                       ) : building ? (
                         `${building.code} - ${building.name}`
                       ) : (
@@ -342,7 +361,7 @@ export function RoomsCrudClient() {
                         <input
                           value={editForm.floor}
                           onChange={(e) => setEditForm((s) => ({ ...s, floor: e.target.value }))}
-                          className="h-9 w-24 rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-24`}
                         />
                       ) : (
                         room.floor ?? "—"
@@ -353,7 +372,7 @@ export function RoomsCrudClient() {
                         <input
                           value={editForm.capacity}
                           onChange={(e) => setEditForm((s) => ({ ...s, capacity: e.target.value }))}
-                          className="h-9 w-24 rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-24`}
                         />
                       ) : (
                         room.capacity
@@ -371,7 +390,7 @@ export function RoomsCrudClient() {
                               type="button"
                               onClick={() => void handleSaveEdit()}
                               disabled={saving}
-                              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+                              className={adminPrimaryBtnCompactClass}
                             >
                               Save
                             </button>
@@ -381,7 +400,7 @@ export function RoomsCrudClient() {
                                 setEditingId(null);
                                 setEditForm(EMPTY_FORM);
                               }}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Cancel
                             </button>
@@ -391,7 +410,7 @@ export function RoomsCrudClient() {
                             <button
                               type="button"
                               onClick={() => startEditing(room)}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Edit
                             </button>
@@ -399,7 +418,7 @@ export function RoomsCrudClient() {
                               type="button"
                               onClick={() => void handleDeleteRoom(room.id)}
                               disabled={saving}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Delete
                             </button>

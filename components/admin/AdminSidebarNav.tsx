@@ -3,62 +3,327 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
+import { useAdminSidebar } from "@/components/admin/AdminSidebarProvider";
 
-const NAV_ITEMS: Array<{ path: string; label: string }> = [
-  { path: "/admin/dashboard", label: "Dashboard" },
-  { path: "/admin/tenants", label: "Tenants" },
-  { path: "/admin/inspectors", label: "Inspectors" },
-  { path: "/admin/inspections", label: "Inspections" },
-  { path: "/admin/buildings", label: "Buildings" },
-  { path: "/admin/rooms", label: "Rooms" },
-  { path: "/admin/settings", label: "Settings" },
+/* ── Inline SVG icons (no external dep) ─────────────────────────── */
+
+function IconDashboard({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function IconTenants({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconInspectors({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="m22 2-5 5" />
+      <path d="m17 2 5 5" />
+    </svg>
+  );
+}
+
+function IconInspections({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
+function IconBuildings({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01" />
+      <path d="M16 6h.01" />
+      <path d="M8 10h.01" />
+      <path d="M16 10h.01" />
+      <path d="M8 14h.01" />
+      <path d="M16 14h.01" />
+    </svg>
+  );
+}
+
+function IconRooms({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
+function IconSettings({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function IconCollapse({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="11 17 6 12 11 7" />
+      <polyline points="18 17 13 12 18 7" />
+    </svg>
+  );
+}
+
+function IconExpand({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="13 17 18 12 13 7" />
+      <polyline points="6 17 11 12 6 7" />
+    </svg>
+  );
+}
+
+function IconMenu({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function IconClose({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+/* ── Nav items ──────────────────────────────────────────────────── */
+
+const NAV_ITEMS: Array<{
+  path: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { path: "/admin/dashboard", label: "Dashboard", icon: IconDashboard },
+  { path: "/admin/tenants", label: "Tenants", icon: IconTenants },
+  { path: "/admin/inspectors", label: "Inspectors", icon: IconInspectors },
+  { path: "/admin/inspections", label: "Inspections", icon: IconInspections },
+  { path: "/admin/buildings", label: "Buildings", icon: IconBuildings },
+  { path: "/admin/rooms", label: "Rooms", icon: IconRooms },
+  { path: "/admin/settings", label: "Settings", icon: IconSettings },
 ];
 
 function linkActive(pathname: string, itemPath: string): boolean {
-  if (itemPath === "/admin/dashboard") {
-    return pathname === "/admin/dashboard";
-  }
+  if (itemPath === "/admin/dashboard") return pathname === "/admin/dashboard";
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
+
+/** Active item: avoid `primary` navy — it reads as a dark blob in dark mode. */
+const NAV_LINK_ACTIVE =
+  "bg-sky-100 text-sky-950 ring-1 ring-sky-200/80 dark:bg-sky-500/25 dark:text-sky-50 dark:ring-sky-400/35";
+const NAV_LINK_ICON_ACTIVE = "text-sky-700 dark:text-sky-200";
+const NAV_LINK_IDLE =
+  "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800";
+const NAV_LINK_ICON_IDLE =
+  "text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300";
+
+/* ── Mobile hamburger button (rendered outside sidebar in layout) ─ */
+
+export function AdminSidebarMobileToggle() {
+  const { mobileOpen, setMobileOpen } = useAdminSidebar();
+  return (
+    <button
+      type="button"
+      onClick={() => setMobileOpen(!mobileOpen)}
+      className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 lg:hidden"
+      aria-label="Toggle navigation"
+    >
+      {mobileOpen ? <IconClose className="h-5 w-5" /> : <IconMenu className="h-5 w-5" />}
+    </button>
+  );
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
 
 export function AdminSidebarNav() {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const organizationId = searchParams.get("organizationId")?.trim() ?? "";
+  const { collapsed, toggle, mobileOpen, setMobileOpen } = useAdminSidebar();
+
+  const navContent = (
+    <>
+      {/* Brand area */}
+      <div className={`flex items-center gap-3 px-3 pb-1 pt-3 ${collapsed ? "justify-center" : ""}`}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
+          <span className="text-sm font-bold text-white">I</span>
+        </div>
+        {!collapsed && (
+          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+            Inspect AI
+          </span>
+        )}
+      </div>
+
+      {/* Portal role (matches inspector / tenant sidebar chrome) */}
+      {!collapsed && (
+        <div className="mt-1 px-3">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Property manager
+          </p>
+        </div>
+      )}
+
+      {/* Divider */}
+      <div className="mx-3 my-3 h-px bg-zinc-200 dark:bg-zinc-700" />
+
+      {/* Nav links */}
+      <nav className="flex-1 overflow-y-auto px-2">
+        <ul className="flex flex-col gap-0.5">
+          {NAV_ITEMS.map((item) => {
+            const active = linkActive(pathname, item.path);
+            const Icon = item.icon;
+            return (
+              <li key={item.path}>
+                <Link
+                  href={
+                    organizationId
+                      ? withAdminOrganizationId(item.path, organizationId)
+                      : "/home/dashboard"
+                  }
+                  onClick={() => setMobileOpen(false)}
+                  title={collapsed ? item.label : undefined}
+                  className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all ${
+                    collapsed ? "justify-center" : ""
+                  } ${active ? NAV_LINK_ACTIVE : NAV_LINK_IDLE}`}
+                >
+                  <Icon
+                    className={`h-[18px] w-[18px] shrink-0 ${active ? NAV_LINK_ICON_ACTIVE : NAV_LINK_ICON_IDLE}`}
+                  />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Collapse toggle — desktop only */}
+      <div className="hidden lg:block mt-auto border-t border-zinc-200 dark:border-zinc-700 px-2 py-2">
+        <button
+          type="button"
+          onClick={toggle}
+          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 ${
+            collapsed ? "justify-center" : ""
+          }`}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <IconExpand className="h-[18px] w-[18px] shrink-0" />
+          ) : (
+            <>
+              <IconCollapse className="h-[18px] w-[18px] shrink-0" />
+              <span>Collapse</span>
+            </>
+          )}
+        </button>
+      </div>
+    </>
+  );
 
   return (
-    <nav className="rounded-2xl border-2 border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Navigate
+    <>
+      {/* Desktop sidebar */}
+      <div
+        className={`hidden h-full flex-col border-r border-zinc-200 bg-white transition-[width] duration-200 ease-in-out dark:border-zinc-800 dark:bg-zinc-950 lg:flex ${
+          collapsed ? "w-[68px]" : "w-60"
+        }`}
+      >
+        {navContent}
       </div>
-      {!organizationId ? (
-        <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Open the admin console from your home page and pick an organization.
-        </p>
-      ) : null}
-      <ul className="flex flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
-          const active = linkActive(pathname, item.path);
-          return (
-            <li key={item.path}>
-              <Link
-                href={
-                  organizationId
-                    ? withAdminOrganizationId(item.path, organizationId)
-                    : "/home/dashboard"
-                }
-                className={`block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                }`}
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-2xl dark:bg-zinc-950 animate-slide-in-left">
+            <div className="flex items-center justify-between px-3 pt-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
+                  <span className="text-sm font-bold text-white">I</span>
+                </div>
+                <span className="text-sm font-semibold tracking-tight text-foreground">
+                  Inspect AI
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Close navigation"
               >
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                <IconClose className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mx-3 my-3 h-px bg-zinc-200 dark:bg-zinc-700" />
+
+            <nav className="flex-1 overflow-y-auto px-2">
+              <ul className="flex flex-col gap-0.5">
+                {NAV_ITEMS.map((item) => {
+                  const active = linkActive(pathname, item.path);
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        href={
+                          organizationId
+                            ? withAdminOrganizationId(item.path, organizationId)
+                            : "/home/dashboard"
+                        }
+                        onClick={() => setMobileOpen(false)}
+                        className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all ${
+                          active ? NAV_LINK_ACTIVE : NAV_LINK_IDLE
+                        }`}
+                      >
+                        <Icon
+                          className={`h-[18px] w-[18px] shrink-0 ${active ? NAV_LINK_ICON_ACTIVE : NAV_LINK_ICON_IDLE}`}
+                        />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

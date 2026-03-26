@@ -13,6 +13,19 @@ import {
   queryCollection,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import {
+  adminCardClass,
+  adminCardTableWrapClass,
+  adminEmptyStateClass,
+  adminInputClass,
+  adminInputTableClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnCompactClass,
+  adminSecondaryBtnClass,
+  adminTableHeaderRowClass,
+} from "@/components/admin/adminConsolePrimitives";
 import type { Building, Room, WithId } from "@/types";
 
 type BuildingForm = {
@@ -169,7 +182,7 @@ export function BuildingsCrudClient() {
 
   if (!organizationId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className={adminEmptyStateClass}>
         Go to{" "}
         <Link href="/home/dashboard" className="font-semibold underline">
           home
@@ -180,65 +193,63 @@ export function BuildingsCrudClient() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className={adminPageSectionClass}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Buildings
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <h1 className={adminPageTitleClass}>Buildings</h1>
+          <p className={adminPageDescClass}>
             Organization-scoped building inventory with live create, edit, and delete actions.
           </p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className={adminCardClass}>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={createForm.name}
             onChange={(e) => setCreateForm((s) => ({ ...s, name: e.target.value }))}
             placeholder="Building name"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <input
             value={createForm.code}
             onChange={(e) => setCreateForm((s) => ({ ...s, code: e.target.value.toUpperCase() }))}
             placeholder="Code (e.g. BERK)"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <input
             value={createForm.address}
             onChange={(e) => setCreateForm((s) => ({ ...s, address: e.target.value }))}
             placeholder="Address (optional)"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <button
             type="button"
             onClick={() => void handleCreateBuilding()}
             disabled={saving}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+            className={`${adminPrimaryBtnCompactClass} w-full md:w-auto`}
           >
             + Create building
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
-          Building Inventory
+      <div className={adminCardTableWrapClass}>
+        <div className="border-b border-zinc-200 px-5 py-4 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
+          Building inventory
         </div>
-        <div className="p-4">
+        <div className="p-4 sm:p-5">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by code, name, or address..."
-            className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            placeholder="Search by code, name, or address…"
+            className={adminInputClass}
           />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+              <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Address</th>
@@ -256,7 +267,7 @@ export function BuildingsCrudClient() {
                         <input
                           value={editForm.code}
                           onChange={(e) => setEditForm((s) => ({ ...s, code: e.target.value.toUpperCase() }))}
-                          className="h-9 w-28 rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-28`}
                         />
                       ) : (
                         building.code
@@ -267,7 +278,7 @@ export function BuildingsCrudClient() {
                         <input
                           value={editForm.name}
                           onChange={(e) => setEditForm((s) => ({ ...s, name: e.target.value }))}
-                          className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-full min-w-[8rem]`}
                         />
                       ) : (
                         building.name
@@ -278,7 +289,7 @@ export function BuildingsCrudClient() {
                         <input
                           value={editForm.address}
                           onChange={(e) => setEditForm((s) => ({ ...s, address: e.target.value }))}
-                          className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-2 text-sm outline-none focus:border-accent dark:border-zinc-700 dark:bg-zinc-900"
+                          className={`${adminInputTableClass} w-full min-w-[8rem]`}
                         />
                       ) : (
                         building.address || "—"
@@ -293,7 +304,7 @@ export function BuildingsCrudClient() {
                               type="button"
                               onClick={() => void handleSaveEdit()}
                               disabled={saving}
-                              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+                              className={adminPrimaryBtnCompactClass}
                             >
                               Save
                             </button>
@@ -303,7 +314,7 @@ export function BuildingsCrudClient() {
                                 setEditingId(null);
                                 setEditForm(EMPTY_FORM);
                               }}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Cancel
                             </button>
@@ -313,7 +324,7 @@ export function BuildingsCrudClient() {
                             <button
                               type="button"
                               onClick={() => startEditing(building)}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Edit
                             </button>
@@ -321,13 +332,13 @@ export function BuildingsCrudClient() {
                               type="button"
                               onClick={() => void handleDeleteBuilding(building.id)}
                               disabled={saving}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               Delete
                             </button>
                             <Link
                               href={`/admin/rooms?organizationId=${organizationId}&buildingId=${building.id}`}
-                              className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                              className={adminSecondaryBtnClass}
                             >
                               View rooms
                             </Link>

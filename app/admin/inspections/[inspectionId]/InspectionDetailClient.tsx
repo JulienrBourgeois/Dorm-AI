@@ -3,8 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BackLink } from "@/components/auth/ui";
+import {
+  adminCardClass,
+  adminInputClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnCompactClass,
+  adminSecondaryBtnClass,
+  adminTextareaClass,
+} from "@/components/admin/adminConsolePrimitives";
 import { toast } from "sonner";
-import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
   dateToTimestamp,
@@ -163,17 +172,6 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
       }
 
       await updateDocument(COLLECTIONS.inspections, inspection.id, payload);
-      await logAuditEvent({
-        eventType: "inspection.status.changed",
-        actorId: inspection.createdBy || "admin",
-        entityType: "inspection",
-        entityId: inspection.id,
-        inspectionId: inspection.id,
-        organizationId: inspection.organizationId,
-        fromStatus: inspection.status,
-        toStatus: next,
-        source: "admin.inspection.detail",
-      });
       toast.success(`Status updated to ${next}.`);
       await refresh();
     } catch (err) {
@@ -196,16 +194,6 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
       await updateDocument(COLLECTIONS.inspections, inspection.id, {
         scheduledFor: dateToTimestamp(nextDate),
         updatedAt: dateToTimestamp(new Date()),
-      });
-      await logAuditEvent({
-        eventType: "inspection.rescheduled",
-        actorId: inspection.createdBy || "admin",
-        entityType: "inspection",
-        entityId: inspection.id,
-        inspectionId: inspection.id,
-        organizationId: inspection.organizationId,
-        source: "admin.inspection.detail",
-        metadata: { scheduledAt: nextDate.toISOString() },
       });
       toast.success("Inspection rescheduled.");
       await refresh();
@@ -257,18 +245,18 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
 
   if (!inspection && !loading) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+      <div className={`${adminCardClass} text-sm text-zinc-600 dark:text-zinc-300`}>
         Inspection not found.
       </div>
     );
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className={adminPageSectionClass}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Inspection Detail</h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <h1 className={adminPageTitleClass}>Inspection detail</h1>
+          <p className={adminPageDescClass}>
             Manage scheduling and lifecycle transitions with a controlled state model.
           </p>
           <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Inspection ID: {inspectionId}</div>
@@ -283,7 +271,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className={adminCardClass}>
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Context</div>
           <div className="mt-3 space-y-3 text-sm">
             <div>
@@ -309,7 +297,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className={`lg:col-span-2 ${adminCardClass}`}>
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Lifecycle Actions</div>
           <div className="mt-4 flex flex-wrap gap-2">
             {(inspection ? ALLOWED_TRANSITIONS[inspection.status] : []).map((next) => (
@@ -318,7 +306,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                 type="button"
                 onClick={() => void transitionTo(next)}
                 disabled={saving || loading}
-                className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                className={adminSecondaryBtnClass}
               >
                 Move to {next}
               </button>
@@ -332,14 +320,14 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                 type="datetime-local"
                 value={scheduledAtInput}
                 onChange={(e) => setScheduledAtInput(e.target.value)}
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+                className={adminInputClass}
               />
             </div>
             <button
               type="button"
               onClick={() => void saveReschedule()}
               disabled={saving || loading}
-              className="self-end rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+              className={`${adminPrimaryBtnCompactClass} self-end`}
             >
               Save reschedule
             </button>
@@ -348,19 +336,19 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           <div className="mt-6">
             <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Timestamps</div>
             <div className="mt-3 grid gap-3 md:grid-cols-4">
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="rounded-2xl border-2 border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Created</div>
                 <div className="mt-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{formatDate(inspection?.createdAt)}</div>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="rounded-2xl border-2 border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Scheduled</div>
                 <div className="mt-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{formatDate(inspection?.scheduledFor)}</div>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="rounded-2xl border-2 border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Started</div>
                 <div className="mt-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{formatDate(inspection?.startedAt)}</div>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="rounded-2xl border-2 border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Completed</div>
                 <div className="mt-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{formatDate(inspection?.completedAt)}</div>
               </div>
@@ -373,7 +361,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
               {mediaItems.map((media) => (
                 <div
                   key={media.id}
-                  className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="truncate font-medium text-zinc-900 dark:text-zinc-100">{media.storagePath}</div>
@@ -384,7 +372,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                       href={media.downloadUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
+                      className={adminSecondaryBtnClass}
                     >
                       Open media
                     </a>
@@ -414,14 +402,14 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
               value={summaryDraft}
               onChange={(e) => setSummaryDraft(e.target.value)}
               placeholder="Generate a draft summary, review edits, then finalize for tenant visibility."
-              className="mt-3 min-h-[120px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+              className={`mt-3 ${adminTextareaClass}`}
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => void runSummaryAction("generate")}
                 disabled={summarySaving}
-                className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
+                className={adminSecondaryBtnClass}
               >
                 Generate draft
               </button>
@@ -429,7 +417,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                 type="button"
                 onClick={() => void runSummaryAction("review")}
                 disabled={summarySaving || !summaryDraft.trim()}
-                className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:bg-black dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
+                className={adminSecondaryBtnClass}
               >
                 Save review edits
               </button>
@@ -437,13 +425,13 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                 type="button"
                 onClick={() => void runSummaryAction("finalize")}
                 disabled={summarySaving || !summaryDraft.trim()}
-                className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+                className={adminPrimaryBtnCompactClass}
               >
                 Finalize for tenant
               </button>
             </div>
             {inspection?.aiSummary ? (
-              <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+              <div className="mt-3 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-200">
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Final summary
                 </div>

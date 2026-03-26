@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { where } from "firebase/firestore";
+import { deleteField, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { auth } from "@/app/lib/firebase/app";
-import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
   dateToTimestamp,
@@ -16,6 +15,20 @@ import {
   updateDocument,
 } from "@/app/lib/firebase/firestore";
 import { triggerMembershipInviteEmail } from "@/lib/email/triggerFromClient";
+import { CopyInviteLinkActions } from "@/components/admin/CopyInviteLinkActions";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import {
+  adminCardClass,
+  adminCardTableWrapClass,
+  adminEmptyStateClass,
+  adminInputClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnClass,
+  adminSecondaryBtnClass,
+  adminTableHeaderRowClass,
+} from "@/components/admin/adminConsolePrimitives";
 import type { MembershipStatus, Room, User, WithId } from "@/types";
 
 type MembershipDoc = {
@@ -26,6 +39,7 @@ type MembershipDoc = {
   roomId?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
+  pendingInviteCode?: string;
 };
 
 type TenantRow = {
@@ -35,6 +49,7 @@ type TenantRow = {
   email: string;
   status: MembershipStatus;
   roomId?: string;
+  pendingInviteCode?: string;
 };
 
 function makeInviteCode(prefix: string) {
@@ -54,7 +69,6 @@ export function TenantsLifecycleClient() {
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRoomId, setInviteRoomId] = useState("");
-
   const refresh = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
@@ -86,6 +100,7 @@ export function TenantsLifecycleClient() {
           email: user?.email || "—",
           status: m.status,
           roomId: m.roomId,
+          pendingInviteCode: m.pendingInviteCode,
         });
       }
       nextRows.sort((a, b) => a.name.localeCompare(b.name));
@@ -145,6 +160,8 @@ export function TenantsLifecycleClient() {
         updatedAt: now,
       });
       const membershipId = `${userId}-${organizationId}`;
+      const code = makeInviteCode("TEN");
+      const expiresAt = dateToTimestamp(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
       await setDocument(COLLECTIONS.memberships, membershipId, {
         id: membershipId,
         userId,
@@ -152,22 +169,10 @@ export function TenantsLifecycleClient() {
         role: "TENANT",
         status: "INVITED",
         roomId: inviteRoomId || undefined,
+        pendingInviteCode: code,
         createdAt: now,
         updatedAt: now,
       });
-      await logAuditEvent({
-        eventType: "membership.created",
-        actorId: "admin",
-        entityType: "membership",
-        entityId: membershipId,
-        membershipId,
-        organizationId,
-        toStatus: "INVITED",
-        source: "admin.tenants.invite",
-      });
-
-      const code = makeInviteCode("TEN");
-      const expiresAt = dateToTimestamp(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
       await setDocument(COLLECTIONS.inviteCodes, code, {
         organizationId,
         role: "TENANT",
@@ -187,13 +192,13 @@ export function TenantsLifecycleClient() {
           inviteeEmail: email,
           inviteeName: name,
         }).catch(() => {
-          toast.error(`Invite created, but email failed. Share this link: /join?code=${code}`);
+          toast.warning("Invite saved, but the email could not be sent. Copy the join link from the tenant row.");
         });
       } else {
-        toast.error(`Invite created, but send email failed. Share this link: /join?code=${code}`);
+        toast.warning("Invite saved, but email was not sent (not signed in). Copy the join link from the tenant row.");
       }
 
-      toast.success("Tenant invite created and email queued.");
+      toast.success("Tenant invite created.");
       setInviteName("");
       setInviteEmail("");
       setInviteRoomId("");
@@ -211,18 +216,10 @@ export function TenantsLifecycleClient() {
       const previousStatus = rows.find((row) => row.membershipId === membershipId)?.status;
       await updateDocument(COLLECTIONS.memberships, membershipId, {
         status: nextStatus,
+        ...(nextStatus === "ACTIVE"
+          ? { pendingInviteCode: deleteField() }
+          : {}),
         updatedAt: dateToTimestamp(new Date()),
-      });
-      await logAuditEvent({
-        eventType: "membership.status.changed",
-        actorId: "admin",
-        entityType: "membership",
-        entityId: membershipId,
-        membershipId,
-        organizationId,
-        fromStatus: previousStatus,
-        toStatus: nextStatus,
-        source: "admin.tenants.status",
       });
       toast.success(`Tenant status set to ${nextStatus}.`);
       await refresh();
@@ -250,9 +247,17 @@ export function TenantsLifecycleClient() {
     }
   }
 
+  const inviteRoomOptions = useMemo(
+    () => [
+      { value: "", label: "No room assigned yet" },
+      ...rooms.map((room) => ({ value: room.id, label: room.number })),
+    ],
+    [rooms],
+  );
+
   if (!organizationId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className={adminEmptyStateClass}>
         Go to{" "}
         <Link href="/home/dashboard" className="font-semibold underline">
           home
@@ -263,67 +268,59 @@ export function TenantsLifecycleClient() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className={adminPageSectionClass}>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Tenants
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <h1 className={adminPageTitleClass}>Tenants</h1>
+        <p className={adminPageDescClass}>
           Invite tenants, manage membership status, and assign rooms.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className={adminCardClass}>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={inviteName}
             onChange={(e) => setInviteName(e.target.value)}
             placeholder="Tenant name"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
           <input
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="Tenant email"
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+            className={adminInputClass}
           />
-          <select
+          <AdminSelect
             value={inviteRoomId}
-            onChange={(e) => setInviteRoomId(e.target.value)}
-            className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <option value="">No room assigned yet</option>
-            {rooms.map((room) => (
-              <option key={room.id} value={room.id}>
-                {room.number}
-              </option>
-            ))}
-          </select>
+            onChange={setInviteRoomId}
+            options={inviteRoomOptions}
+            aria-label="Room for invite"
+          />
           <button
             type="button"
             onClick={() => void handleInviteTenant()}
             disabled={saving}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+            className={`${adminPrimaryBtnClass} w-full md:w-auto`}
           >
             Invite tenant
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
-          <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Tenant Records</div>
+      <div className={adminCardTableWrapClass}>
+        <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+          <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Tenant records</div>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tenants..."
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-accent sm:max-w-xs dark:border-zinc-800 dark:bg-zinc-900"
+            placeholder="Search tenants…"
+            className={`${adminInputClass} h-10 sm:max-w-xs`}
           />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[980px] w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+              <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Tenant</th>
                 <th className="px-4 py-3">Room</th>
                 <th className="px-4 py-3">Status</th>
@@ -355,30 +352,32 @@ export function TenantsLifecycleClient() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
                           href={`/admin/tenants/${row.userId}?organizationId=${organizationId}`}
-                          className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                          className={adminSecondaryBtnClass}
                         >
                           Details
                         </Link>
+                        {row.status === "INVITED" && row.pendingInviteCode ? (
+                          <CopyInviteLinkActions code={row.pendingInviteCode} />
+                        ) : null}
 
-                        <select
+                        <AdminSelect
+                          size="sm"
+                          className="max-w-[11rem]"
                           value={assignmentDrafts[row.membershipId] ?? ""}
-                          onChange={(e) =>
-                            setAssignmentDrafts((prev) => ({ ...prev, [row.membershipId]: e.target.value }))
+                          onChange={(v) =>
+                            setAssignmentDrafts((prev) => ({ ...prev, [row.membershipId]: v }))
                           }
-                          className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-xs outline-none focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-                        >
-                          <option value="">No room</option>
-                          {rooms.map((room) => (
-                            <option key={room.id} value={room.id}>
-                              {room.number}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: "", label: "No room" },
+                            ...rooms.map((room) => ({ value: room.id, label: room.number })),
+                          ]}
+                          aria-label={`Assign room for ${row.name}`}
+                        />
                         <button
                           type="button"
                           onClick={() => void saveAssignment(row.membershipId)}
                           disabled={saving}
-                          className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                          className={adminSecondaryBtnClass}
                         >
                           Assign room
                         </button>
@@ -388,7 +387,7 @@ export function TenantsLifecycleClient() {
                             type="button"
                             onClick={() => void updateStatus(row.membershipId, "ACTIVE")}
                             disabled={saving}
-                            className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                            className={adminSecondaryBtnClass}
                           >
                             Activate
                           </button>
@@ -397,7 +396,7 @@ export function TenantsLifecycleClient() {
                             type="button"
                             onClick={() => void updateStatus(row.membershipId, "INACTIVE")}
                             disabled={saving}
-                            className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-800"
+                            className={adminSecondaryBtnClass}
                           >
                             Deactivate
                           </button>

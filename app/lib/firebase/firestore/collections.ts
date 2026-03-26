@@ -12,5 +12,4 @@ export const COLLECTIONS = {
   inspectionItems: "inspectionItems",
   media: "media",
   charges: "charges",
-  auditEvents: "auditEvents",
 } as const;

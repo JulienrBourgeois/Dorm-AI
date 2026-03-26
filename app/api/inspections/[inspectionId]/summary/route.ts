@@ -84,17 +84,6 @@ export async function POST(
         aiSummaryGeneratedBy: decoded.uid,
         updatedAt: new Date(),
       });
-      await db.collection(COLLECTIONS.auditEvents).add({
-        eventType: "summary.generated",
-        actorId: decoded.uid,
-        entityType: "summary",
-        entityId: inspectionId,
-        inspectionId,
-        organizationId: inspection.organizationId || null,
-        source: "api.summary.generate",
-        metadata: { fallback: summaryResult.usedFallback },
-        createdAt: new Date(),
-      });
 
       return apiOk({
         status: "UNDER_REVIEW",
@@ -110,17 +99,6 @@ export async function POST(
         aiSummaryStatus: "UNDER_REVIEW",
         aiSummaryError: null,
         updatedAt: new Date(),
-      });
-      await db.collection(COLLECTIONS.auditEvents).add({
-        eventType: "summary.reviewed",
-        actorId: decoded.uid,
-        entityType: "summary",
-        entityId: inspectionId,
-        inspectionId,
-        organizationId: inspection.organizationId || null,
-        source: "api.summary.review",
-        metadata: { length: reviewedDraft.length },
-        createdAt: new Date(),
       });
       return apiOk({ status: "UNDER_REVIEW", draft: reviewedDraft });
     }
@@ -142,17 +120,6 @@ export async function POST(
         aiSummaryFinalizedAt: new Date(),
         aiSummaryFinalizedBy: decoded.uid,
         updatedAt: new Date(),
-      });
-      await db.collection(COLLECTIONS.auditEvents).add({
-        eventType: "summary.finalized",
-        actorId: decoded.uid,
-        entityType: "summary",
-        entityId: inspectionId,
-        inspectionId,
-        organizationId: inspection.organizationId || null,
-        source: "api.summary.finalize",
-        metadata: { length: finalSummary.length },
-        createdAt: new Date(),
       });
       return apiOk({ status: "FINALIZED", summary: finalSummary });
     }

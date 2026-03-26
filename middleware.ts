@@ -96,7 +96,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect role portals from unauthorized/deactivated role access.
+  // Protect role portals from users without an active membership for that role.
   if (pathname.startsWith("/tenant") || pathname.startsWith("/inspector")) {
     if (!hasSessionCookie(cookieHeader)) {
       const loginUrl = new URL("/login", origin);
@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
     }
     const target = await resolveRedirectTarget(origin, pathname, cookieHeader);
     if (!target) {
-      return NextResponse.redirect(new URL("/home/dashboard?status=deactivated", origin));
+      return NextResponse.redirect(new URL("/home/dashboard", origin));
     }
     if (pathname.startsWith("/tenant") && target !== "/tenant") {
       return NextResponse.redirect(new URL(target, origin));

@@ -164,21 +164,6 @@ export interface Charge {
   updatedAt: Date;
 }
 
-export interface AuditEvent {
-  eventType: string;
-  actorId: string;
-  entityType: "inspection" | "membership" | "summary";
-  entityId: string;
-  organizationId?: string;
-  inspectionId?: string;
-  membershipId?: string;
-  fromStatus?: string;
-  toStatus?: string;
-  source: string;
-  metadata?: Record<string, unknown>;
-  createdAt: Date;
-}
-
 // --- WithId: document with id (e.g. from Firestore snapshot) ---
 
 export type WithId<T> = T & { id: string };

@@ -20,7 +20,6 @@ export type {
   InspectionItemResponse,
   MediaType,
   ChargeStatus,
-  AuditEvent,
 } from "./dorm";
 export type {
   ApiSuccess,

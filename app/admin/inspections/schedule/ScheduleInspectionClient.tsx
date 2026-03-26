@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BackLink } from "@/components/auth/ui";
 import { where } from "firebase/firestore";
 import { toast } from "sonner";
-import { logAuditEvent } from "@/app/lib/audit/logEvent";
 import {
   COLLECTIONS,
   addDocument,
@@ -15,6 +14,17 @@ import {
   queryCollection,
 } from "@/app/lib/firebase/firestore";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import {
+  adminCardClass,
+  adminEmptyStateClass,
+  adminInputClass,
+  adminPageDescClass,
+  adminPageSectionClass,
+  adminPageTitleClass,
+  adminPrimaryBtnClass,
+  adminTextareaClass,
+} from "@/components/admin/adminConsolePrimitives";
 import type { Building, InspectionType, Room, User, WithId } from "@/types";
 
 type InspectorMembershipDoc = {
@@ -117,6 +127,30 @@ export function ScheduleInspectionClient() {
     return building ? `${building.code}-${room.number}` : room.number;
   }, [rooms, roomId, buildings]);
 
+  const roomOptions = useMemo(
+    () =>
+      rooms.map((room) => {
+        const building = buildings[room.buildingId];
+        const label = building ? `${building.code} — ${room.number}` : room.number;
+        return { value: room.id, label };
+      }),
+    [rooms, buildings],
+  );
+
+  const typeOptions = useMemo(
+    () => [
+      { value: "MOVE_IN", label: "Move-in" },
+      { value: "ROUTINE", label: "Routine" },
+      { value: "MOVE_OUT", label: "Move-out" },
+    ],
+    [],
+  );
+
+  const inspectorOptions = useMemo(
+    () => inspectors.map((i) => ({ value: i.userId, label: i.name })),
+    [inspectors],
+  );
+
   async function handleCreateInspection() {
     if (!organizationId) return;
     if (!roomId || !inspectorId || !scheduledAt) {
@@ -158,16 +192,6 @@ export function ScheduleInspectionClient() {
         createdAt: now,
         updatedAt: now,
       });
-      await logAuditEvent({
-        eventType: "inspection.created",
-        actorId: currentUserId || "system",
-        entityType: "inspection",
-        entityId: createdInspectionRef.id,
-        inspectionId: createdInspectionRef.id,
-        organizationId,
-        toStatus: "SCHEDULED",
-        source: "admin.inspection.schedule",
-      });
 
       toast.success("Inspection scheduled.");
       router.push(`/admin/inspections?organizationId=${organizationId}`);
@@ -180,7 +204,7 @@ export function ScheduleInspectionClient() {
 
   if (!organizationId) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className={adminEmptyStateClass}>
         Go to{" "}
         <Link href="/home/dashboard" className="font-semibold underline">
           home
@@ -191,13 +215,11 @@ export function ScheduleInspectionClient() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <section className={adminPageSectionClass}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Schedule Inspection
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <h1 className={adminPageTitleClass}>Schedule inspection</h1>
+          <p className={adminPageDescClass}>
             Create a new scheduled inspection for this organization.
           </p>
         </div>
@@ -213,71 +235,56 @@ export function ScheduleInspectionClient() {
           e.preventDefault();
           void handleCreateInspection();
         }}
-        className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+        className={adminCardClass}
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Room selector
+              Room
             </label>
-            <select
+            <AdminSelect
               value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              {rooms.map((room) => {
-                const building = buildings[room.buildingId];
-                const label = building ? `${building.code} - ${room.number}` : room.number;
-                return (
-                  <option key={room.id} value={room.id}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
+              onChange={setRoomId}
+              options={roomOptions}
+              disabled={rooms.length === 0}
+              aria-label="Select room"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Inspection type
             </label>
-            <select
+            <AdminSelect
               value={type}
-              onChange={(e) => setType(e.target.value as InspectionType)}
-              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <option value="MOVE_IN">Move-in</option>
-              <option value="ROUTINE">Routine</option>
-              <option value="MOVE_OUT">Move-out</option>
-            </select>
+              onChange={(v) => setType(v as InspectionType)}
+              options={typeOptions}
+              aria-label="Inspection type"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Inspector selector
+              Inspector
             </label>
-            <select
+            <AdminSelect
               value={inspectorId}
-              onChange={(e) => setInspectorId(e.target.value)}
-              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              {inspectors.map((inspector) => (
-                <option key={inspector.userId} value={inspector.userId}>
-                  {inspector.name}
-                </option>
-              ))}
-            </select>
+              onChange={setInspectorId}
+              options={inspectorOptions}
+              disabled={inspectors.length === 0}
+              aria-label="Select inspector"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Scheduled date/time
+              Scheduled date and time
             </label>
             <input
               type="datetime-local"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
-              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
+              className={adminInputClass}
             />
           </div>
 
@@ -288,22 +295,22 @@ export function ScheduleInspectionClient() {
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[120px] w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-accent dark:border-zinc-800 dark:bg-zinc-900"
-              placeholder="Add any context for the inspector..."
+              className={adminTextareaClass}
+              placeholder="Add any context for the inspector…"
             />
           </div>
         </div>
 
-        <div className="mt-5 flex items-center gap-2">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <button
             type="submit"
             disabled={saving || loading || rooms.length === 0 || inspectors.length === 0}
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+            className={adminPrimaryBtnClass}
           >
             Save scheduled inspection
           </button>
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            This writes to Firestore with status `SCHEDULED`.
+            Saves to Firestore with status SCHEDULED.
           </span>
         </div>
       </form>
