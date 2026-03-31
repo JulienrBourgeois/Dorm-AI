@@ -11,11 +11,13 @@ import {
   dateToTimestamp,
   getDocumentData,
   queryCollection,
-  setDocument,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
-import { triggerMembershipInviteEmail } from "@/lib/email/triggerFromClient";
+import { createTenantInvite } from "@/lib/admin/membershipInvites";
+import { parseTenantInviteCsv } from "@/lib/csv/parseInviteCsv";
 import { CopyInviteLinkActions } from "@/components/admin/CopyInviteLinkActions";
+import { BulkInviteCsvCard } from "@/components/admin/BulkInviteCsvCard";
+import { InviteJoinHelpCard } from "@/components/admin/InviteJoinHelpCard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import {
   adminCardClass,
@@ -52,10 +54,9 @@ type TenantRow = {
   pendingInviteCode?: string;
 };
 
-function makeInviteCode(prefix: string) {
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `${prefix}-${rand}`;
-}
+const TENANT_CSV_TEMPLATE = `name,email,room
+Jane Doe,jane@example.com,101A
+`;
 
 export function TenantsLifecycleClient() {
   const searchParams = useSearchParams();
@@ -149,56 +150,20 @@ export function TenantsLifecycleClient() {
 
     setSaving(true);
     try {
-      const userId = `invite_tenant_${Date.now().toString(36)}`;
-      const now = dateToTimestamp(new Date());
-      await setDocument(COLLECTIONS.users, userId, {
-        id: userId,
+      const result = await createTenantInvite({
+        organizationId,
         name,
         email,
-        role: "tenant",
-        createdAt: now,
-        updatedAt: now,
-      });
-      const membershipId = `${userId}-${organizationId}`;
-      const code = makeInviteCode("TEN");
-      const expiresAt = dateToTimestamp(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
-      await setDocument(COLLECTIONS.memberships, membershipId, {
-        id: membershipId,
-        userId,
-        organizationId,
-        role: "TENANT",
-        status: "INVITED",
-        roomId: inviteRoomId || undefined,
-        pendingInviteCode: code,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await setDocument(COLLECTIONS.inviteCodes, code, {
-        organizationId,
-        role: "TENANT",
-        inviteeEmail: email,
-        inviteeName: name,
         roomId: inviteRoomId || null,
-        createdAt: now,
-        expiresAt,
+        currentUser: auth.currentUser,
       });
-
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        void triggerMembershipInviteEmail(currentUser, {
-          organizationId,
-          role: "TENANT",
-          inviteCode: code,
-          inviteeEmail: email,
-          inviteeName: name,
-        }).catch(() => {
-          toast.warning("Invite saved, but the email could not be sent. Copy the join link from the tenant row.");
-        });
+      if (!result.emailSent) {
+        toast.warning(
+          "Invite created. Email could not be sent — copy the join link from the tenant row.",
+        );
       } else {
-        toast.warning("Invite saved, but email was not sent (not signed in). Copy the join link from the tenant row.");
+        toast.success("Tenant invite created.");
       }
-
-      toast.success("Tenant invite created.");
       setInviteName("");
       setInviteEmail("");
       setInviteRoomId("");
@@ -210,10 +175,48 @@ export function TenantsLifecycleClient() {
     }
   }
 
+  const handleBulkTenantInvites = useCallback(
+    async (parsed: ReturnType<typeof parseTenantInviteCsv>["rows"]) => {
+      const failures: string[] = [];
+      let ok = 0;
+      let failed = 0;
+      for (const row of parsed) {
+        let roomId: string | undefined;
+        if (row.roomNumber?.trim()) {
+          const key = row.roomNumber.trim().toLowerCase();
+          const match = rooms.find((r) => r.number.trim().toLowerCase() === key);
+          if (!match) {
+            failed++;
+            failures.push(`${row.email}: no room "${row.roomNumber}" — check room numbers in Rooms.`);
+            continue;
+          }
+          roomId = match.id;
+        }
+        try {
+          await createTenantInvite({
+            organizationId,
+            name: row.name,
+            email: row.email,
+            roomId: roomId ?? null,
+            currentUser: auth.currentUser,
+          });
+          ok++;
+        } catch (e) {
+          failed++;
+          failures.push(
+            `${row.email}: ${e instanceof Error ? e.message : "Failed to create invite."}`,
+          );
+        }
+      }
+      await refresh();
+      return { ok, failed, failures };
+    },
+    [organizationId, rooms, refresh],
+  );
+
   async function updateStatus(membershipId: string, nextStatus: MembershipStatus) {
     setSaving(true);
     try {
-      const previousStatus = rows.find((row) => row.membershipId === membershipId)?.status;
       await updateDocument(COLLECTIONS.memberships, membershipId, {
         status: nextStatus,
         ...(nextStatus === "ACTIVE"
@@ -276,7 +279,10 @@ export function TenantsLifecycleClient() {
         </p>
       </div>
 
+      <InviteJoinHelpCard />
+
       <div className={adminCardClass}>
+        <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Invite one tenant</h2>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={inviteName}
@@ -305,6 +311,20 @@ export function TenantsLifecycleClient() {
             Invite tenant
           </button>
         </div>
+      </div>
+
+      <div className={adminCardClass}>
+        <BulkInviteCsvCard
+          title="Bulk invite from CSV"
+          summary="Upload a spreadsheet with columns name, email, and optional room (room number). Download the template to get the format right."
+          templateFilename="tenant-invites-template.csv"
+          templateCsv={TENANT_CSV_TEMPLATE}
+          parseCsv={parseTenantInviteCsv}
+          previewHeaders={["Name", "Email", "Room"]}
+          previewRow={(row) => [row.name, row.email, row.roomNumber ?? "—"]}
+          onInviteAll={handleBulkTenantInvites}
+          disabled={saving}
+        />
       </div>
 
       <div className={adminCardTableWrapClass}>

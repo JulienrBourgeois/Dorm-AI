@@ -11,11 +11,13 @@ import {
   dateToTimestamp,
   getDocumentData,
   queryCollection,
-  setDocument,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
-import { triggerMembershipInviteEmail } from "@/lib/email/triggerFromClient";
+import { createInspectorInvite } from "@/lib/admin/membershipInvites";
+import { parseInspectorInviteCsv } from "@/lib/csv/parseInviteCsv";
 import { CopyInviteLinkActions } from "@/components/admin/CopyInviteLinkActions";
+import { BulkInviteCsvCard } from "@/components/admin/BulkInviteCsvCard";
+import { InviteJoinHelpCard } from "@/components/admin/InviteJoinHelpCard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import {
   adminCardClass,
@@ -51,10 +53,9 @@ type InspectorRow = {
   pendingInviteCode?: string;
 };
 
-function makeInviteCode(prefix: string) {
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `${prefix}-${rand}`;
-}
+const INSPECTOR_CSV_TEMPLATE = `name,email,building
+Alex Smith,alex@example.com,NH
+`;
 
 export function InspectorsLifecycleClient() {
   const searchParams = useSearchParams();
@@ -148,56 +149,20 @@ export function InspectorsLifecycleClient() {
 
     setSaving(true);
     try {
-      const userId = `invite_inspector_${Date.now().toString(36)}`;
-      const now = dateToTimestamp(new Date());
-      await setDocument(COLLECTIONS.users, userId, {
-        id: userId,
+      const result = await createInspectorInvite({
+        organizationId,
         name,
         email,
-        role: "inspector",
-        createdAt: now,
-        updatedAt: now,
+        buildingId: inviteBuildingId || null,
+        currentUser: auth.currentUser,
       });
-      const membershipId = `${userId}-${organizationId}`;
-      const code = makeInviteCode("INSP");
-      const expiresAt = dateToTimestamp(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
-      await setDocument(COLLECTIONS.memberships, membershipId, {
-        id: membershipId,
-        userId,
-        organizationId,
-        role: "INSPECTOR",
-        status: "INVITED",
-        assignedBuildingIds: inviteBuildingId ? [inviteBuildingId] : [],
-        pendingInviteCode: code,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await setDocument(COLLECTIONS.inviteCodes, code, {
-        organizationId,
-        role: "INSPECTOR",
-        inviteeEmail: email,
-        inviteeName: name,
-        assignedBuildingIds: inviteBuildingId ? [inviteBuildingId] : [],
-        createdAt: now,
-        expiresAt,
-      });
-
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        void triggerMembershipInviteEmail(currentUser, {
-          organizationId,
-          role: "INSPECTOR",
-          inviteCode: code,
-          inviteeEmail: email,
-          inviteeName: name,
-        }).catch(() => {
-          toast.warning("Invite saved, but the email could not be sent. Copy the join link from the inspector row.");
-        });
+      if (!result.emailSent) {
+        toast.warning(
+          "Invite created. Email could not be sent — copy the join link from the inspector row.",
+        );
       } else {
-        toast.warning("Invite saved, but email was not sent (not signed in). Copy the join link from the inspector row.");
+        toast.success("Inspector invite created.");
       }
-
-      toast.success("Inspector invite created.");
       setInviteName("");
       setInviteEmail("");
       setInviteBuildingId("");
@@ -209,10 +174,50 @@ export function InspectorsLifecycleClient() {
     }
   }
 
+  const handleBulkInspectorInvites = useCallback(
+    async (parsed: ReturnType<typeof parseInspectorInviteCsv>["rows"]) => {
+      const failures: string[] = [];
+      let ok = 0;
+      let failed = 0;
+      for (const row of parsed) {
+        let buildingId: string | undefined;
+        if (row.buildingCode?.trim()) {
+          const key = row.buildingCode.trim().toLowerCase();
+          const match = buildings.find((b) => b.code.trim().toLowerCase() === key);
+          if (!match) {
+            failed++;
+            failures.push(
+              `${row.email}: no building "${row.buildingCode}" — use the building code from Buildings.`,
+            );
+            continue;
+          }
+          buildingId = match.id;
+        }
+        try {
+          await createInspectorInvite({
+            organizationId,
+            name: row.name,
+            email: row.email,
+            buildingId: buildingId ?? null,
+            currentUser: auth.currentUser,
+          });
+          ok++;
+        } catch (e) {
+          failed++;
+          failures.push(
+            `${row.email}: ${e instanceof Error ? e.message : "Failed to create invite."}`,
+          );
+        }
+      }
+      await refresh();
+      return { ok, failed, failures };
+    },
+    [organizationId, buildings, refresh],
+  );
+
   async function updateStatus(membershipId: string, nextStatus: MembershipStatus) {
     setSaving(true);
     try {
-      const previousStatus = rows.find((row) => row.membershipId === membershipId)?.status;
       await updateDocument(COLLECTIONS.memberships, membershipId, {
         status: nextStatus,
         ...(nextStatus === "ACTIVE"
@@ -275,7 +280,10 @@ export function InspectorsLifecycleClient() {
         </p>
       </div>
 
+      <InviteJoinHelpCard />
+
       <div className={adminCardClass}>
+        <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Invite one inspector</h2>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={inviteName}
@@ -304,6 +312,20 @@ export function InspectorsLifecycleClient() {
             Invite inspector
           </button>
         </div>
+      </div>
+
+      <div className={adminCardClass}>
+        <BulkInviteCsvCard
+          title="Bulk invite from CSV"
+          summary="Upload a spreadsheet with columns name, email, and optional building (building code). Download the template to get the format right."
+          templateFilename="inspector-invites-template.csv"
+          templateCsv={INSPECTOR_CSV_TEMPLATE}
+          parseCsv={parseInspectorInviteCsv}
+          previewHeaders={["Name", "Email", "Building"]}
+          previewRow={(row) => [row.name, row.email, row.buildingCode ?? "—"]}
+          onInviteAll={handleBulkInspectorInvites}
+          disabled={saving}
+        />
       </div>
 
       <div className={adminCardTableWrapClass}>

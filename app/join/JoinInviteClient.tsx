@@ -14,12 +14,14 @@ export function JoinInviteClient() {
   );
   const [message, setMessage] = useState("Preparing invite join...");
   const [failed, setFailed] = useState(false);
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (user) => {
+      setSignedInEmail(user?.email?.trim() ?? null);
       if (!code) {
         setFailed(true);
-        setMessage("Invite code is missing.");
+        setMessage("Invite code is missing. Ask your property team for a full invite link.");
         return;
       }
       if (!user) {
@@ -46,7 +48,7 @@ export function JoinInviteClient() {
           throw new Error(msg || "Invite code is invalid or expired.");
         }
         const role = "data" in payload ? payload.data?.role : undefined;
-        setMessage("Invite accepted. Redirecting...");
+        setMessage("Invite accepted. Redirecting…");
         router.replace(role === "INSPECTOR" ? "/inspector" : "/tenant");
       } catch (err) {
         setFailed(true);
@@ -59,6 +61,11 @@ export function JoinInviteClient() {
     return unsubscribe;
   }, [code, router]);
 
+  const emailMismatch =
+    failed &&
+    message.toLowerCase().includes("different email") &&
+    Boolean(signedInEmail);
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto flex max-w-xl flex-col gap-4 px-6 py-20">
@@ -66,11 +73,27 @@ export function JoinInviteClient() {
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
             Join by invite
           </h1>
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
-            {message}
-          </p>
+          {!failed ? (
+            <div className="mt-4 flex items-center gap-3">
+              <div
+                className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-200 border-t-accent dark:border-zinc-700 dark:border-t-accent"
+                role="status"
+                aria-label="Loading"
+              />
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">{message}</p>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{message}</p>
+          )}
+          {emailMismatch ? (
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              You&apos;re signed in as <span className="font-mono text-zinc-800 dark:text-zinc-200">{signedInEmail}</span>.
+              Sign out and use the email address your property team put on the invite, or ask them to send a new invite to
+              your current email.
+            </p>
+          ) : null}
           {failed ? (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/login"
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"

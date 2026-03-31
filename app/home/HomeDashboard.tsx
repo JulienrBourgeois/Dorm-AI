@@ -234,7 +234,8 @@ export function HomeDashboard() {
               >
                 <h2 className="text-sm font-semibold text-foreground sm:text-base">Have an invite code?</h2>
                 <p className="mt-1 text-sm leading-snug text-zinc-600 dark:text-zinc-400">
-                  Paste the code from your housing team—we&apos;ll set you up as an inspector or a resident automatically.
+                  Sign in with the same email your property team used on the invite. Paste the code (or open your invite
+                  link)—we&apos;ll connect you as an inspector or resident.
                 </p>
                 <form
                   onSubmit={handleJoinWithCode}
@@ -244,9 +245,9 @@ export function HomeDashboard() {
                     type="text"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="Code"
+                    placeholder="Invite code"
                     className="h-11 min-w-0 flex-1 rounded-xl border-2 border-zinc-200 bg-transparent px-3 text-center font-mono text-base tracking-widest text-foreground outline-none transition-colors focus:border-accent dark:border-zinc-700 sm:text-left"
-                    maxLength={12}
+                    maxLength={32}
                     disabled={joinLoading}
                     autoComplete="off"
                   />
@@ -259,7 +260,11 @@ export function HomeDashboard() {
                   </button>
                 </form>
                 {joinError && (
-                  <p className="mt-3 text-sm text-red-600 dark:text-red-400">{joinError}</p>
+                  <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                    {joinError.toLowerCase().includes("different email")
+                      ? `${joinError} Sign in with the email address on the invite, or ask your property team to resend the invite to ${userEmail || "your current email"}.`
+                      : joinError}
+                  </p>
                 )}
               </section>
             </div>
