@@ -9,19 +9,21 @@ function firstString(v: string | string[] | undefined): string {
 }
 
 /** Short join link: /join/CODE?e=email → /join?code=CODE&e=email */
-export default function JoinWithCodeRedirect({
+export default async function JoinWithCodeRedirect({
   params,
   searchParams,
 }: {
-  params: { code: string };
-  searchParams?: Search;
+  params: Promise<{ code: string }>;
+  searchParams?: Promise<Search>;
 }) {
-  const raw = params.code?.trim() ?? "";
+  const { code: codeParam } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const raw = codeParam?.trim() ?? "";
   if (!raw) {
     redirect("/join");
   }
   const code = raw.toUpperCase();
-  const e = firstString(searchParams?.e).trim();
+  const e = firstString(resolvedSearchParams?.e).trim();
   const q = new URLSearchParams({ code });
   if (e) q.set("e", e);
   redirect(`/join?${q.toString()}`);
