@@ -168,7 +168,7 @@ export function TenantsLifecycleClient() {
         organizationId,
         role: "TENANT",
         status: "INVITED",
-        roomId: inviteRoomId || undefined,
+        roomId: inviteRoomId || null,
         pendingInviteCode: code,
         createdAt: now,
         updatedAt: now,
