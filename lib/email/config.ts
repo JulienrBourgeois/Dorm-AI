@@ -1,17 +1,22 @@
 /**
  * Resend + app URL for transactional email.
- * Set RESEND_API_KEY in .env.local. Optional: RESEND_FROM_EMAIL (default uses Resend test sender).
+ *
+ * - RESEND_API_KEY — required (Resend dashboard).
+ * - RESEND_FROM_EMAIL — optional. If unset, uses the verified product domain so mail can reach any recipient
+ *   (onboarding@resend.dev only delivers to your own address).
  */
+const DEFAULT_RESEND_FROM = "Inspect AI <noreply@inspectai.info>";
+
 export function getResendApiKey(): string | undefined {
   const k = process.env.RESEND_API_KEY?.trim();
   return k || undefined;
 }
 
-/** Display name + address. Use a verified domain in production. */
+/** Display name + address; must be on a domain verified in Resend. */
 export function getResendFrom(): string {
   const raw = process.env.RESEND_FROM_EMAIL?.trim();
   if (raw) return raw.includes("<") ? raw : `Inspect AI <${raw}>`;
-  return "Inspect AI <onboarding@resend.dev>";
+  return DEFAULT_RESEND_FROM;
 }
 
 export function isResendConfigured(): boolean {
