@@ -1,4 +1,5 @@
-import { getAppOrigin, getResendFrom } from "@/lib/email/config";
+import { getAppHostname, getAppOrigin, getResendFrom } from "@/lib/email/config";
+import { escapeHtml, htmlAttrHref } from "@/lib/email/escapeHtml";
 import { getResend } from "@/lib/email/resendClient";
 
 function oneLine(s: string, max = 200): string {
@@ -24,30 +25,37 @@ export async function sendOrganizationCreatedEmail(opts: {
   const first = oneLine(rawFirst, 80);
   const orgName = oneLine(opts.organizationName, 200);
   const origin = getAppOrigin();
-  const dashboardUrl = `${origin}/admin/dashboard?organizationId=${encodeURIComponent(opts.organizationId)}`;
+  const host = getAppHostname();
+  const workspaceUrl = `${origin}/admin/dashboard?organizationId=${encodeURIComponent(opts.organizationId)}`;
 
   const text = [
-    `${orgName} is set up in Inspect AI.`,
-    "",
     `Hi ${first},`,
     "",
-    `You created "${orgName}" in Inspect AI. This workspace holds buildings, rooms, tenants, inspectors, and inspections.`,
+    `Your workspace “${orgName}” is ready. When you sign in, you can add buildings, rooms, and people, and schedule inspections from there.`,
     "",
-    "You can:",
-    "- Add buildings and rooms.",
-    "- Invite inspectors and residents when you are ready.",
-    "- Schedule inspections from the dashboard.",
+    "Open it here:",
+    workspaceUrl,
     "",
-    `Open your dashboard: ${dashboardUrl}`,
+    `You can always reach the app at ${host}.`,
     "",
-    "Bookmark that link to return to this organization.",
+    "— Inspect AI",
   ].join("\n");
+
+  const html = [
+    `<p>Hi ${escapeHtml(first)},</p>`,
+    `<p>Your workspace <strong>${escapeHtml(orgName)}</strong> is ready. After you sign in, you can add buildings and rooms, invite people, and schedule inspections.</p>`,
+    `<p><a href="${htmlAttrHref(workspaceUrl)}">Open your workspace</a></p>`,
+    `<p style="font-size:13px;color:#555">If the link doesn’t open, copy this into your browser:<br>${escapeHtml(workspaceUrl)}</p>`,
+    `<p style="font-size:13px;color:#555">You can also go to ${escapeHtml(host)} and choose this organization from the menu.</p>`,
+    '<p style="font-size:13px;color:#555">— Inspect AI</p>',
+  ].join("");
 
   const { error } = await resend.emails.send({
     from: getResendFrom(),
     to: opts.to,
-    subject: `${orgName} is live on Inspect AI`,
+    subject: `${orgName} is ready`,
     text,
+    html,
   });
 
   if (error) {

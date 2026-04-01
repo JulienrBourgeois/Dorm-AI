@@ -1,7 +1,14 @@
 import { getAppOrigin } from "@/lib/email/config";
 
-/** Absolute URL for accepting a membership invite (same shape as invite emails). */
-export function joinInviteAbsoluteUrl(code: string): string {
+/**
+ * Deep link for invite redemption. Optional `inviteeEmail` adds `?e=` so auth can prefill
+ * and the join API can be reached after sign-in / sign-up with the correct account.
+ */
+export function joinInviteAbsoluteUrl(code: string, inviteeEmail?: string): string {
   const origin = getAppOrigin();
-  return `${origin}/join?code=${encodeURIComponent(code.trim().toUpperCase())}`;
+  const c = code.trim().toUpperCase();
+  const base = `${origin}/join/${encodeURIComponent(c)}`;
+  const em = inviteeEmail?.trim().toLowerCase();
+  if (!em) return base;
+  return `${base}?e=${encodeURIComponent(em)}`;
 }

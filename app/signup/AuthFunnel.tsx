@@ -19,7 +19,7 @@ export function AuthFunnel() {
       return (
         <EmailSignUpStep
           email={f.email} password={f.password} confirmPassword={f.confirmPassword}
-          loading={f.loading}
+          loading={f.loading} joinInviteReturn={f.joinInviteReturn}
           setEmail={f.setEmail} setPassword={f.setPassword} setConfirmPassword={f.setConfirmPassword}
           goTo={f.goTo} goWelcome={f.goWelcome}
           handleEmailSignUp={f.handleEmailSignUp} handleEmailSignIn={f.handleEmailSignIn}
@@ -30,7 +30,7 @@ export function AuthFunnel() {
       return (
         <EmailLoginStep
           email={f.email} password={f.password} confirmPassword={f.confirmPassword}
-          loading={f.loading}
+          loading={f.loading} joinInviteReturn={f.joinInviteReturn}
           setEmail={f.setEmail} setPassword={f.setPassword} setConfirmPassword={f.setConfirmPassword}
           goTo={f.goTo} goWelcome={f.goWelcome}
           handleEmailSignUp={f.handleEmailSignUp} handleEmailSignIn={f.handleEmailSignIn}

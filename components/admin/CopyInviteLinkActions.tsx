@@ -6,6 +6,8 @@ import { adminSecondaryBtnClass } from "@/components/admin/adminConsolePrimitive
 
 type Props = {
   code: string;
+  /** If set, link includes ?e= so sign-in matches the invited address. */
+  inviteeEmail?: string;
   /** When false, only "Copy join link" is shown (compact table actions). */
   showCodeButton?: boolean;
   className?: string;
@@ -13,11 +15,14 @@ type Props = {
 
 export function CopyInviteLinkActions({
   code,
+  inviteeEmail,
   showCodeButton = true,
   className = "",
 }: Props) {
   const normalized = code.trim().toUpperCase();
-  const url = joinInviteAbsoluteUrl(normalized);
+  const em =
+    inviteeEmail?.trim().includes("@") ? inviteeEmail.trim().toLowerCase() : undefined;
+  const url = joinInviteAbsoluteUrl(normalized, em);
 
   async function copyText(text: string, label: string) {
     try {

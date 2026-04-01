@@ -40,13 +40,20 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   const redirectToParam = searchParams.get("next") ?? searchParams.get("redirect");
   const redirectTo =
     redirectToParam && redirectToParam.startsWith("/") ? redirectToParam : null;
+  const joinInviteReturn = Boolean(redirectTo?.includes("/join"));
 
   const stepParam = searchParams.get("step");
   const emailParam = searchParams.get("email") ?? "";
 
   const [step, setStep] = useState<AuthStep>(() => stepFromParam(stepParam) ?? "welcome");
   const [mode, setMode] = useState<"signup" | "login">("signup");
-  const [email, setEmail] = useState(() => (stepParam === "forgot-password" || stepParam === "email-login" ? emailParam : ""));
+  const [email, setEmail] = useState(() =>
+    stepParam === "forgot-password" ||
+    stepParam === "email-login" ||
+    stepParam === "email-signup"
+      ? emailParam
+      : "",
+  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -160,6 +167,7 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
   return {
     step, mode, email, password, confirmPassword,
     loading,
+    joinInviteReturn,
     setEmail, setPassword, setConfirmPassword, setMode,
     goTo, goWelcome,
     handleEmailSignUp, handleEmailSignIn,

@@ -130,6 +130,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Invite redemption must run in the app (wrong account → sign out). Do not bounce to dashboard.
+  if (pathname === "/join" || pathname.startsWith("/join/")) {
+    return NextResponse.next();
+  }
+
   const redirectTarget = await resolveRedirectTarget(origin, pathname, cookieHeader);
   if (redirectTarget) {
     return NextResponse.redirect(new URL(redirectTarget, origin));
@@ -145,6 +150,7 @@ export const config = {
     "/login",
     "/forgot-password",
     "/join",
+    "/join/(.*)",
     "/setup-funnel",
     "/home",
     "/home/dashboard",

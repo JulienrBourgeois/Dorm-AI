@@ -29,3 +29,13 @@ export function getAppOrigin(): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`;
   return "http://localhost:3000";
 }
+
+/** Hostname for plain-language email copy (e.g. inspectai.info). */
+export function getAppHostname(): string {
+  try {
+    return new URL(getAppOrigin()).host;
+  } catch {
+    return getAppOrigin().replace(/^https?:\/\//, "").split("/")[0] ?? "our site";
+  }
+}
+

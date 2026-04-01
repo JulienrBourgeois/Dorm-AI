@@ -1,4 +1,5 @@
-import { getAppOrigin, getResendFrom } from "@/lib/email/config";
+import { getAppHostname, getAppOrigin, getResendFrom } from "@/lib/email/config";
+import { escapeHtml, htmlAttrHref } from "@/lib/email/escapeHtml";
 import { getResend } from "@/lib/email/resendClient";
 
 function oneLine(s: string, max = 200): string {
@@ -21,27 +22,34 @@ export async function sendWelcomeEmail(opts: {
     "there";
   const first = oneLine(rawFirst, 80);
   const origin = getAppOrigin();
+  const host = getAppHostname();
 
   const text = [
     `Hi ${first},`,
     "",
-    "Your Inspect AI account is ready. You can schedule inspections, document units, and keep everything scoped to your property.",
+    "Thanks for creating an account. You can sign in any time at the link below.",
     "",
-    "Next steps:",
-    "- Finish your profile when prompted.",
-    "- Create an organization or join one with an invite.",
-    "- Use the admin console when you are ready to manage buildings, rooms, and inspections.",
+    origin,
     "",
-    `Open the app: ${origin}`,
+    `If you prefer, open ${host} in your browser and sign in from there.`,
     "",
-    "Questions? Reply to this email.",
+    "— Inspect AI",
   ].join("\n");
+
+  const html = [
+    `<p>Hi ${escapeHtml(first)},</p>`,
+    "<p>Thanks for creating an account. You can sign in whenever you’re ready.</p>",
+    `<p><a href="${htmlAttrHref(origin)}">Sign in to Inspect AI</a></p>`,
+    `<p style="font-size:13px;color:#555">If the link above doesn’t open, copy this into your browser: ${escapeHtml(origin)}</p>`,
+    '<p style="font-size:13px;color:#555">— Inspect AI</p>',
+  ].join("");
 
   const { error } = await resend.emails.send({
     from: getResendFrom(),
     to: opts.to,
-    subject: "Welcome to Inspect AI",
+    subject: "Your Inspect AI account",
     text,
+    html,
   });
 
   if (error) {
