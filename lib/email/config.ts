@@ -26,7 +26,15 @@ export function isResendConfigured(): boolean {
 export function getAppOrigin(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
   if (base) return base;
+  const appUrl = process.env.APP_URL?.trim().replace(/\/$/, "");
+  if (appUrl) return appUrl;
+  const prodUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim().replace(
+    /^https?:\/\//,
+    "",
+  );
+  if (prodUrl) return `https://${prodUrl.replace(/\/$/, "")}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`;
+  if (process.env.NODE_ENV === "production") return "https://www.inspectai.info";
   return "http://localhost:3000";
 }
 
