@@ -102,7 +102,10 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
     setPassword("");
     setConfirmPassword("");
     setStep("welcome");
-    router.replace(pathname, { scroll: false });
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("step");
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }
 
   async function handleEmailSignUp(e: FormEvent) {

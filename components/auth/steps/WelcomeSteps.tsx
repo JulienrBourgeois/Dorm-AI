@@ -38,7 +38,7 @@ export function LoginChooserStep({ goTo, setMode, goWelcome }: Pick<AuthFunnelAc
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Don&apos;t have an account?{" "}
-          <TextLink onClick={() => { setMode("signup"); goWelcome(); }}>Create account</TextLink>
+          <TextLink onClick={() => { setMode("signup"); goTo("email-signup"); }}>Create account</TextLink>
         </p>
       </AnimateStep>
     </Shell>
