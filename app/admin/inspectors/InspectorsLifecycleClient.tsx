@@ -19,6 +19,8 @@ import { CopyInviteLinkActions } from "@/components/admin/CopyInviteLinkActions"
 import { BulkInviteCsvCard } from "@/components/admin/BulkInviteCsvCard";
 import { InviteJoinHelpCard } from "@/components/admin/InviteJoinHelpCard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
+import { membershipStatusLabel } from "@/lib/admin/membershipDisplay";
+import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
 import {
   adminCardClass,
   adminCardTableWrapClass,
@@ -259,6 +261,11 @@ export function InspectorsLifecycleClient() {
     [buildings],
   );
 
+  const buildingsLink = useMemo(
+    () => withAdminOrganizationId("/admin/buildings", organizationId),
+    [organizationId],
+  );
+
   if (!organizationId) {
     return (
       <div className={adminEmptyStateClass}>
@@ -281,6 +288,16 @@ export function InspectorsLifecycleClient() {
       </div>
 
       <InviteJoinHelpCard />
+
+      {buildings.length === 0 ? (
+        <div className="rounded-xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
+          <span className="font-medium">No buildings yet.</span>{" "}
+          <Link href={buildingsLink} className="font-semibold text-amber-900 underline decoration-amber-700/40 underline-offset-2 hover:decoration-amber-800 dark:text-amber-50 dark:decoration-amber-400/50">
+            Add buildings
+          </Link>{" "}
+          first so you can assign inspectors to a site when inviting or editing.
+        </div>
+      ) : null}
 
       <div className={adminCardClass}>
         <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">Invite one inspector</h2>
@@ -328,9 +345,19 @@ export function InspectorsLifecycleClient() {
         />
       </div>
 
-      <div className={adminCardTableWrapClass}>
+      <div id="inspector-records" className={`${adminCardTableWrapClass} scroll-mt-24`}>
         <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
-          <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Inspector records</div>
+          <div className="min-w-0 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            Inspector records
+            {!loading && rows.length > 0 ? (
+              <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                ({filteredRows.length === rows.length
+                  ? `${rows.length}`
+                  : `${filteredRows.length} of ${rows.length}`}
+                )
+              </span>
+            ) : null}
+          </div>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -340,16 +367,41 @@ export function InspectorsLifecycleClient() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[980px] w-full border-collapse text-sm">
+            <caption className="sr-only">
+              Inspectors for this organization: name, assigned buildings, status, and actions.
+            </caption>
             <thead>
               <tr className={adminTableHeaderRowClass}>
-                <th className="px-4 py-3">Inspector</th>
-                <th className="px-4 py-3">Assigned buildings</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Actions</th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold">
+                  Inspector
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold">
+                  Assigned buildings
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold">
+                  Status
+                </th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-accent dark:border-zinc-600 dark:border-t-accent"
+                        aria-hidden
+                      />
+                      Loading inspectors…
+                    </span>
+                  </td>
+                </tr>
+              ) : null}
+              {!loading &&
+                filteredRows.map((row, index) => {
                 const assigned = row.assignedBuildingIds
                   .map((id) => {
                     const b = buildingMap[id];
@@ -362,15 +414,22 @@ export function InspectorsLifecycleClient() {
                     : row.status === "INVITED"
                       ? "bg-accent/10 text-accent"
                       : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200";
+                const stripe =
+                  index % 2 === 1 ? "bg-zinc-50/80 dark:bg-zinc-900/30" : "bg-white dark:bg-zinc-950/20";
                 return (
-                  <tr key={row.membershipId} className="border-b border-zinc-100 dark:border-zinc-800">
+                  <tr
+                    key={row.membershipId}
+                    className={`border-b border-zinc-100 transition-colors hover:bg-zinc-100/90 dark:border-zinc-800 dark:hover:bg-zinc-800/40 ${stripe}`}
+                  >
                     <td className="px-4 py-4">
                       <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">{row.email}</div>
                     </td>
                     <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">{assigned || "—"}</td>
                     <td className="px-4 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>{row.status}</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
+                        {membershipStatusLabel(row.status)}
+                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap items-center gap-2">
@@ -431,10 +490,18 @@ export function InspectorsLifecycleClient() {
                   </tr>
                 );
               })}
-              {!loading && filteredRows.length === 0 && (
+              {!loading && filteredRows.length === 0 && rows.length > 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                    No inspectors found for this organization.
+                    No inspectors match your search. Try a different name, email, or building code.
+                  </td>
+                </tr>
+              )}
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    No inspectors yet. Invite someone above—they’ll appear here as{" "}
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">Invited</span> until they join.
                   </td>
                 </tr>
               )}

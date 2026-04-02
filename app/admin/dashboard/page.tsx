@@ -173,8 +173,8 @@ export default function AdminDashboardPage() {
   const stats = [
     { label: "Buildings", value: buildings.length, href: q("/admin/buildings") },
     { label: "Rooms", value: rooms.length, href: q("/admin/rooms") },
-    { label: "Tenants", value: tenantCount, href: q("/admin/tenants") },
-    { label: "Inspectors", value: inspectorCount, href: q("/admin/inspectors") },
+    { label: "Tenants", value: tenantCount, href: `${q("/admin/tenants")}#tenant-records` },
+    { label: "Inspectors", value: inspectorCount, href: `${q("/admin/inspectors")}#inspector-records` },
     { label: "Inspections", value: inspections.length, href: q("/admin/inspections") },
   ];
 
@@ -321,13 +321,13 @@ export default function AdminDashboardPage() {
               + Schedule inspection
             </Link>
             <Link
-              href={q("/admin/tenants")}
+              href={`${q("/admin/tenants")}#tenant-records`}
               className="flex h-11 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
             >
               Manage tenants
             </Link>
             <Link
-              href={q("/admin/inspectors")}
+              href={`${q("/admin/inspectors")}#inspector-records`}
               className="flex h-11 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
             >
               Manage inspectors
