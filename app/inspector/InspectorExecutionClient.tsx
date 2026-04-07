@@ -179,22 +179,12 @@ export function InspectorExecutionClient() {
     [inspections, activeInspectionId],
   );
 
-  const allChecklistItems = useMemo(
-    () =>
-      CHECKLIST_TEMPLATE.flatMap((section) =>
-        section.items.map((label, idx) => ({
-          key: `${section.id}:${idx}`,
-          sectionId: section.id,
-          idx,
-          label,
-        })),
-      ),
-    [],
-  );
-
   const activeSection = CHECKLIST_TEMPLATE[activeSectionIdx] ?? null;
-  const completedCount = allChecklistItems.filter((item) => checkedMap[item.key]).length;
-  const progressPct = allChecklistItems.length ? Math.round((completedCount / allChecklistItems.length) * 100) : 0;
+  // Progress is based on section navigation (Next section), not checkbox count.
+  const completedSectionCount = Math.min(activeSectionIdx, CHECKLIST_TEMPLATE.length);
+  const progressPct = CHECKLIST_TEMPLATE.length
+    ? Math.round((completedSectionCount / CHECKLIST_TEMPLATE.length) * 100)
+    : 0;
 
   const loadInspections = useCallback(
     async (uid: string, orgId: string) => {
