@@ -25,7 +25,7 @@ export function NewPropertyHeader() {
         email={email || undefined}
         shortcuts={[
           { href: "/home/dashboard", label: "Home" },
-          { href: "/settings", label: "Settings" },
+          { href: "/settings", label: "Profile" },
         ]}
         onSignOut={onSignOut}
       />

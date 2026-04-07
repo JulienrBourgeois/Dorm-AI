@@ -197,7 +197,7 @@ export function HomeDashboard() {
           email={userEmail || undefined}
           shortcuts={[
             { href: "/home/new-property", label: "New property" },
-            { href: "/settings", label: "Settings" },
+            { href: "/settings", label: "Profile" },
           ]}
           onSignOut={handleSignOut}
         />

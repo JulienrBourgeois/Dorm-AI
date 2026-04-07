@@ -19,7 +19,7 @@ import {
 } from "@/app/lib/firebase/firestore";
 import type { Inspection, InspectionItem, InspectionStatus, Room, User, WithId } from "@/types";
 
-type RunnerView = "queue" | "execution" | "review" | "settings";
+type RunnerView = "queue" | "execution" | "review";
 
 type ChecklistSection = {
   id: string;
@@ -156,7 +156,7 @@ export function InspectorExecutionClient() {
     [],
   );
 
-  function replaceInspectorUrl(nextView: "queue" | "review" | "settings") {
+  function replaceInspectorUrl(nextView: "queue" | "review") {
     router.replace(inspectorPortalHref(organizationId, nextView), { scroll: false });
   }
 
@@ -195,8 +195,14 @@ export function InspectorExecutionClient() {
 
   useEffect(() => {
     const raw = searchParams.get("view");
-    if (raw === "review" || raw === "settings") {
-      setView(raw);
+    if (raw === "settings") {
+      router.replace(inspectorPortalHref(organizationId, "queue"), { scroll: false });
+      setView("queue");
+      setActiveInspectionId(null);
+      return;
+    }
+    if (raw === "review") {
+      setView("review");
       setActiveInspectionId(null);
       return;
     }
@@ -204,7 +210,7 @@ export function InspectorExecutionClient() {
     if (raw === "queue" || raw === null) {
       setActiveInspectionId(null);
     }
-  }, [searchParams]);
+  }, [organizationId, router, searchParams]);
 
   useEffect(() => {
     if (!setExecutionActive) return;
@@ -501,14 +507,6 @@ export function InspectorExecutionClient() {
           </section>
         )}
 
-        {view === "settings" && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Inspector settings</h2>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              Notification and profile settings will be expanded in later PRDs.
-            </p>
-          </section>
-        )}
     </>
   );
 }

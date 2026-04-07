@@ -5,16 +5,9 @@ import { signOutUser } from "@/app/lib/firebase/auth";
 import { AccountDrawer } from "@/components/account/AccountDrawer";
 import { useAuthAccountProfile } from "@/hooks/auth/useAuthAccountProfile";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
-import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
-
-export function AdminHeaderAccount({ organizationId = "" }: { organizationId?: string }) {
+export function AdminHeaderAccount({ organizationId: _organizationId = "" }: { organizationId?: string }) {
   const router = useRouter();
-  const orgId = organizationId.trim();
   const { displayName, email } = useAuthAccountProfile();
-
-  const settingsHref = orgId
-    ? withAdminOrganizationId("/admin/settings", orgId)
-    : "/home/dashboard";
 
   async function onSignOut() {
     await clearSessionCookie();
@@ -29,7 +22,7 @@ export function AdminHeaderAccount({ organizationId = "" }: { organizationId?: s
       onSignOut={onSignOut}
       shortcuts={[
         { href: "/home/dashboard", label: "Organizations" },
-        { href: settingsHref, label: "Settings" },
+        { href: "/settings", label: "Profile" },
       ]}
     />
   );

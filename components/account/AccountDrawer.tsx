@@ -160,14 +160,14 @@ export function AccountDrawer({
           role="dialog"
           aria-modal
           aria-labelledby="account-drawer-title"
-          className={`fixed inset-y-0 right-0 flex w-full max-w-sm flex-col border-l border-zinc-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-zinc-800 dark:bg-zinc-950 ${
+          className={`fixed inset-y-0 right-0 flex w-full max-w-md flex-col border-l-2 border-zinc-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-zinc-800 dark:bg-zinc-950 sm:max-w-lg ${
             menuEntered ? "translate-x-0" : "translate-x-full"
           }`}
           style={{ zIndex: PANEL_Z }}
           onTransitionEnd={handlePanelTransitionEnd}
         >
-          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
-            <h2 id="account-drawer-title" className="text-lg font-semibold text-foreground">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-5 dark:border-zinc-800">
+            <h2 id="account-drawer-title" className="text-xl font-bold tracking-tight text-foreground">
               Account
             </h2>
             <button
@@ -182,9 +182,9 @@ export function AccountDrawer({
             </button>
           </div>
 
-          <div className="border-b border-zinc-100 px-5 py-5 dark:border-zinc-800">
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-lg font-bold text-white shadow-md shadow-primary/20">
+          <div className="border-b border-zinc-200 px-6 py-6 dark:border-zinc-800">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white shadow-md shadow-primary/20">
                 {showInitials ? (
                   initials
                 ) : (
@@ -196,7 +196,7 @@ export function AccountDrawer({
                   <p className="truncate font-semibold text-foreground">{displayName}</p>
                 ) : null}
                 {email ? (
-                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
+                  <p className="truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">{email}</p>
                 ) : !displayName ? (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">Signed in</p>
                 ) : null}
@@ -204,42 +204,42 @@ export function AccountDrawer({
             </div>
           </div>
 
-          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+          <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-5 py-5 sm:px-6">
             {shortcuts.map((s) => (
               <Link
                 key={s.href + s.label}
                 href={s.href}
                 onClick={closeMenu}
-                className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                className="rounded-xl border-2 border-transparent px-4 py-3.5 text-base font-semibold text-foreground transition-colors hover:border-zinc-200 hover:bg-zinc-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 {s.label}
               </Link>
             ))}
             {shortcuts.length > 0 ? (
-              <div className="my-2 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+              <div className="my-2 border-t border-zinc-200 dark:border-zinc-800" role="separator" />
             ) : null}
             <Link
               href="/terms"
               onClick={closeMenu}
-              className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              className="rounded-xl border-2 border-transparent px-4 py-3.5 text-base font-semibold text-foreground transition-colors hover:border-zinc-200 hover:bg-zinc-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Terms of Use
             </Link>
             <Link
               href="/privacy"
               onClick={closeMenu}
-              className="rounded-xl px-3 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              className="rounded-xl border-2 border-transparent px-4 py-3.5 text-base font-semibold text-foreground transition-colors hover:border-zinc-200 hover:bg-zinc-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Privacy Policy
             </Link>
           </nav>
 
-          <div className="border-t border-zinc-100 p-4 dark:border-zinc-800">
+          <div className="border-t border-zinc-200 p-5 dark:border-zinc-800 sm:px-6">
             <button
               type="button"
               disabled={signingOut}
               onClick={() => void handleSignOut()}
-              className="flex h-12 w-full items-center justify-center rounded-2xl border-2 border-zinc-200 text-[15px] font-semibold text-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-800 disabled:opacity-50 dark:border-zinc-700 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-200"
+              className="flex h-12 w-full items-center justify-center rounded-xl border-2 border-zinc-200 text-base font-semibold text-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-800 disabled:opacity-50 dark:border-zinc-700 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-200"
             >
               {signingOut ? "Signing out…" : "Sign out"}
             </button>

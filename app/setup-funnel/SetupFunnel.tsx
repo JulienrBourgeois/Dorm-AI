@@ -141,7 +141,7 @@ export function SetupFunnel() {
           email={auth.currentUser?.email ?? undefined}
           shortcuts={[
             { href: "/", label: "About Inspect AI" },
-            { href: "/settings", label: "Settings" },
+            { href: "/settings", label: "Profile" },
           ]}
           onSignOut={handleSignOut}
         />
