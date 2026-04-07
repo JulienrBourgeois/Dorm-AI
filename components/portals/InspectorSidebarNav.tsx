@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAdminSidebar } from "@/components/admin/AdminSidebarProvider";
+import { PortalSidebarBrand } from "@/components/portals/PortalSidebarBrand";
 import { useInspectorExecutionActive } from "@/components/portals/InspectorRuntimeContext";
 import { inspectorPortalHref } from "@/lib/portal/portalOrgNavigation";
 
@@ -128,14 +129,7 @@ export function InspectorSidebarNav() {
 
   const navContent = (
     <>
-      <div className={`flex items-center gap-3 px-3 pb-1 pt-3 ${collapsed ? "justify-center" : ""}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-          <span className="text-sm font-bold text-white">I</span>
-        </div>
-        {!collapsed && (
-          <span className="truncate text-sm font-semibold tracking-tight text-foreground">Inspect AI</span>
-        )}
-      </div>
+      <PortalSidebarBrand collapsed={collapsed} />
       {!collapsed && (
         <div className="mt-1 px-3">
           <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -185,12 +179,7 @@ export function InspectorSidebarNav() {
           />
           <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-2xl dark:bg-zinc-950 animate-slide-in-left">
             <div className="flex items-center justify-between px-3 pt-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-                  <span className="text-sm font-bold text-white">I</span>
-                </div>
-                <span className="text-sm font-semibold tracking-tight text-foreground">Inspect AI</span>
-              </div>
+              <PortalSidebarBrand collapsed={false} padSection={false} />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}

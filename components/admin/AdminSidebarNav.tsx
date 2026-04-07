@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
 import { useAdminSidebar } from "@/components/admin/AdminSidebarProvider";
+import { PortalSidebarBrand } from "@/components/portals/PortalSidebarBrand";
 
 /* ── Inline SVG icons (no external dep) ─────────────────────────── */
 
@@ -172,20 +173,12 @@ export function AdminSidebarNav() {
   const searchParams = useSearchParams();
   const organizationId = searchParams.get("organizationId")?.trim() ?? "";
   const { collapsed, toggle, mobileOpen, setMobileOpen } = useAdminSidebar();
+  const hrefForNavItem = (path: string) =>
+    organizationId ? withAdminOrganizationId(path, organizationId) : path;
 
   const navContent = (
     <>
-      {/* Brand area */}
-      <div className={`flex items-center gap-3 px-3 pb-1 pt-3 ${collapsed ? "justify-center" : ""}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-          <span className="text-sm font-bold text-white">I</span>
-        </div>
-        {!collapsed && (
-          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
-            Inspect AI
-          </span>
-        )}
-      </div>
+      <PortalSidebarBrand collapsed={collapsed} />
 
       {/* Portal role (matches inspector / tenant sidebar chrome) */}
       {!collapsed && (
@@ -208,11 +201,7 @@ export function AdminSidebarNav() {
             return (
               <li key={item.path}>
                 <Link
-                  href={
-                    organizationId
-                      ? withAdminOrganizationId(item.path, organizationId)
-                      : "/home/dashboard"
-                  }
+                  href={hrefForNavItem(item.path)}
                   onClick={() => setMobileOpen(false)}
                   title={collapsed ? item.label : undefined}
                   className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all ${
@@ -273,14 +262,7 @@ export function AdminSidebarNav() {
           />
           <div className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-2xl dark:bg-zinc-950 animate-slide-in-left">
             <div className="flex items-center justify-between px-3 pt-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-                  <span className="text-sm font-bold text-white">I</span>
-                </div>
-                <span className="text-sm font-semibold tracking-tight text-foreground">
-                  Inspect AI
-                </span>
-              </div>
+              <PortalSidebarBrand collapsed={false} padSection={false} />
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
@@ -301,11 +283,7 @@ export function AdminSidebarNav() {
                   return (
                     <li key={item.path}>
                       <Link
-                        href={
-                          organizationId
-                            ? withAdminOrganizationId(item.path, organizationId)
-                            : "/home/dashboard"
-                        }
+                        href={hrefForNavItem(item.path)}
                         onClick={() => setMobileOpen(false)}
                         className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all ${
                           active ? NAV_LINK_ACTIVE : NAV_LINK_IDLE
