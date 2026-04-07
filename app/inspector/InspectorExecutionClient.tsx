@@ -38,17 +38,97 @@ const CHECKLIST_TEMPLATE: ChecklistSection[] = [
   {
     id: "safety",
     title: "Safety",
-    items: ["Smoke detector functional", "Clear exits"],
+    items: [
+      "Smoke detector functional",
+      "Fire extinguisher present (if required)",
+      "Clear and accessible exits",
+      "No fire hazards (blocked vents, overloaded outlets)",
+    ],
   },
   {
     id: "appliances",
     title: "Appliances",
-    items: ["Fridge runs properly", "Stove knobs present"],
+    items: [
+      "Refrigerator functioning properly",
+      "Freezer functioning properly",
+      "Stove/oven working",
+      "All knobs and handles present",
+      "Microwave functioning (if applicable)",
+    ],
+  },
+  {
+    id: "electrical",
+    title: "Electrical & Lighting",
+    items: [
+      "All lights functioning",
+      "Light switches working",
+      "Outlets working",
+      "No exposed wiring",
+      "No unsafe extension cord usage",
+    ],
   },
   {
     id: "general",
     title: "General",
-    items: ["Walls/ceilings intact", "Flooring free of hazards"],
+    items: [
+      "Furniture intact and stable",
+      "Room is reasonably clean",
+      "Trash disposed properly",
+      "No unauthorized items present",
+      "No strong or unusual odors",
+    ],
+  },
+  {
+    id: "walls",
+    title: "Walls / Floors / Ceilings",
+    items: [
+      "Walls free of holes or major damage",
+      "No peeling paint or markings",
+      "Ceiling intact (no cracks or water stains)",
+      "Floor in good condition (no major stains/damage)",
+      "Baseboards intact",
+    ],
+  },
+  {
+    id: "windows_doors",
+    title: "Windows & Doors",
+    items: [
+      "Windows open and close properly",
+      "Window locks functioning",
+      "Screens intact",
+      "Door opens/closes properly",
+      "Door locks securely",
+    ],
+  },
+  {
+    id: "plumbing",
+    title: "Plumbing",
+    items: [
+      "Sink functioning properly",
+      "Adequate water pressure",
+      "Drain works (no clogging)",
+      "No leaks present",
+      "Toilet/shower functioning (if applicable)",
+    ],
+  },
+  {
+    id: "hvac",
+    title: "HVAC",
+    items: [
+      "Thermostat functioning",
+      "Heating/cooling working",
+      "Airflow adequate",
+      "No unusual noises",
+    ],
+  },
+  {
+    id: "pest",
+    title: "Pest Control",
+    items: [
+      "No signs of insects",
+      "No signs of rodents",
+      "Food stored properly",
+    ],
   },
 ];
 
