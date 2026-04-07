@@ -1,15 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { where } from "firebase/firestore";
+import { deleteField, where } from "firebase/firestore";
 import { toast } from "sonner";
+import { parseBuildingsCsv } from "@/lib/csv/parseBuildingsCsv";
+import { mapPercentToPixelOffset, offsetToMapPercent } from "@/lib/map/propertyMapGeometry";
+import { deleteFile, getDownloadUrl, uploadFile } from "@/app/lib/firebase/storage";
 import {
   COLLECTIONS,
   addDocument,
   dateToTimestamp,
   deleteDocument,
+  getDocumentData,
   queryCollection,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
@@ -26,19 +31,36 @@ import {
   adminSecondaryBtnClass,
   adminTableHeaderRowClass,
 } from "@/components/admin/adminConsolePrimitives";
-import type { Building, Room, WithId } from "@/types";
+import type { Building, Organization, Room, WithId } from "@/types";
 
 type BuildingForm = {
   name: string;
   code: string;
   address: string;
+  mapPinX: string;
+  mapPinY: string;
 };
 
 const EMPTY_FORM: BuildingForm = {
   name: "",
   code: "",
   address: "",
+  mapPinX: "",
+  mapPinY: "",
 };
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function formatMapPin(building: WithId<Building>): string {
+  if (building.mapPinX == null || building.mapPinY == null) return "—";
+  return `${Math.round(building.mapPinX)}%, ${Math.round(building.mapPinY)}%`;
+}
+
+const BUILDINGS_CSV_TEMPLATE = `code,name,address
+BERK,Berkeley Hall,123 Campus Drive
+`;
 
 export function BuildingsCrudClient() {
   const searchParams = useSearchParams();
@@ -51,14 +73,28 @@ export function BuildingsCrudClient() {
   const [createForm, setCreateForm] = useState<BuildingForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<BuildingForm>(EMPTY_FORM);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const mapFileInputRef = useRef<HTMLInputElement>(null);
+  const mapImgRef = useRef<HTMLImageElement>(null);
+  const [propertyMapStoragePath, setPropertyMapStoragePath] = useState<string | null>(null);
+  const [propertyMapUrl, setPropertyMapUrl] = useState<string | null>(null);
+  const [mapUploading, setMapUploading] = useState(false);
+  const [mapLayoutVersion, setMapLayoutVersion] = useState(0);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [placingPinForBuildingId, setPlacingPinForBuildingId] = useState<string | null>(null);
+  const [pinOverlay, setPinOverlay] = useState<
+    Array<{ id: string; left: number; top: number; code: string; selected: boolean }>
+  >([]);
 
   const refreshData = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     try {
-      const [buildingsSnap, roomsSnap] = await Promise.all([
+      const [buildingsSnap, roomsSnap, orgRes] = await Promise.all([
         queryCollection(COLLECTIONS.buildings, where("organizationId", "==", organizationId)),
         queryCollection(COLLECTIONS.rooms, where("organizationId", "==", organizationId)),
+        getDocumentData<Organization>(COLLECTIONS.organizations, organizationId),
       ]);
 
       const nextBuildings: Array<WithId<Building>> = buildingsSnap.docs.map((doc) => ({
@@ -74,6 +110,20 @@ export function BuildingsCrudClient() {
         counts[room.buildingId] = (counts[room.buildingId] ?? 0) + 1;
       }
       setRoomCountByBuilding(counts);
+
+      const mapPath = orgRes.data?.propertyMapStoragePath?.trim() ?? "";
+      setPropertyMapStoragePath(mapPath || null);
+      if (mapPath) {
+        try {
+          const url = await getDownloadUrl(mapPath);
+          setPropertyMapUrl(url);
+        } catch {
+          setPropertyMapUrl(null);
+          toast.error("Could not load property map image (check Storage rules).");
+        }
+      } else {
+        setPropertyMapUrl(null);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load buildings.");
     } finally {
@@ -84,6 +134,40 @@ export function BuildingsCrudClient() {
   useEffect(() => {
     void refreshData();
   }, [refreshData]);
+
+  const bumpMapLayout = useCallback(() => {
+    setMapLayoutVersion((v) => v + 1);
+  }, []);
+
+  useLayoutEffect(() => {
+    const img = mapImgRef.current;
+    if (!img || !propertyMapUrl) {
+      setPinOverlay([]);
+      return;
+    }
+    const list: Array<{ id: string; left: number; top: number; code: string; selected: boolean }> = [];
+    for (const b of buildings) {
+      if (b.mapPinX == null || b.mapPinY == null) continue;
+      const pos = mapPercentToPixelOffset(img, b.mapPinX, b.mapPinY);
+      if (!pos) continue;
+      list.push({
+        id: b.id,
+        left: pos.left,
+        top: pos.top,
+        code: b.code,
+        selected: b.id === selectedBuildingId,
+      });
+    }
+    setPinOverlay(list);
+  }, [buildings, propertyMapUrl, selectedBuildingId, mapLayoutVersion]);
+
+  useEffect(() => {
+    const img = mapImgRef.current;
+    if (!img || !propertyMapUrl) return;
+    const ro = new ResizeObserver(() => bumpMapLayout());
+    ro.observe(img);
+    return () => ro.disconnect();
+  }, [propertyMapUrl, bumpMapLayout]);
 
   const filteredBuildings = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -130,10 +214,15 @@ export function BuildingsCrudClient() {
 
   function startEditing(building: WithId<Building>) {
     setEditingId(building.id);
+    setSelectedBuildingId(building.id);
     setEditForm({
       name: building.name,
       code: building.code,
       address: building.address ?? "",
+      mapPinX:
+        building.mapPinX != null && !Number.isNaN(building.mapPinX) ? String(building.mapPinX) : "",
+      mapPinY:
+        building.mapPinY != null && !Number.isNaN(building.mapPinY) ? String(building.mapPinY) : "",
     });
   }
 
@@ -147,12 +236,33 @@ export function BuildingsCrudClient() {
       return;
     }
 
+    const pinXStr = editForm.mapPinX.trim();
+    const pinYStr = editForm.mapPinY.trim();
+    const pinPatch: Record<string, unknown> = {};
+    if (pinXStr === "" && pinYStr === "") {
+      pinPatch.mapPinX = deleteField();
+      pinPatch.mapPinY = deleteField();
+    } else if (pinXStr !== "" && pinYStr !== "") {
+      const px = Number(pinXStr);
+      const py = Number(pinYStr);
+      if (Number.isNaN(px) || Number.isNaN(py) || px < 0 || px > 100 || py < 0 || py > 100) {
+        toast.error("Map pin X and Y must be numbers from 0 to 100.");
+        return;
+      }
+      pinPatch.mapPinX = px;
+      pinPatch.mapPinY = py;
+    } else {
+      toast.error("Set both map pin X and Y, or leave both empty.");
+      return;
+    }
+
     setSaving(true);
     try {
       await updateDocument(COLLECTIONS.buildings, editingId, {
         name,
         code,
         address,
+        ...pinPatch,
         updatedAt: dateToTimestamp(new Date()),
       });
       toast.success("Building updated.");
@@ -180,6 +290,168 @@ export function BuildingsCrudClient() {
     }
   }
 
+  async function handlePropertyMapFile(file: File) {
+    if (!organizationId) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file (PNG, JPG, WebP, etc.).");
+      return;
+    }
+    setMapUploading(true);
+    const path = `organizations/${organizationId}/property-map/${Date.now()}_${sanitizeFileName(file.name)}`;
+    try {
+      await uploadFile(path, file, { contentType: file.type });
+      const prevPath = propertyMapStoragePath;
+      await updateDocument(COLLECTIONS.organizations, organizationId, {
+        propertyMapStoragePath: path,
+        updatedAt: dateToTimestamp(new Date()),
+      });
+      if (prevPath && prevPath !== path) {
+        try {
+          await deleteFile(prevPath);
+        } catch {
+          /* ignore stale file cleanup failures */
+        }
+      }
+      const url = await getDownloadUrl(path);
+      setPropertyMapStoragePath(path);
+      setPropertyMapUrl(url);
+      toast.success("Property map uploaded.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload map.");
+    } finally {
+      setMapUploading(false);
+      if (mapFileInputRef.current) mapFileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemovePropertyMap() {
+    if (!organizationId || !propertyMapStoragePath) return;
+    if (!confirm("Remove the property map from this organization?")) return;
+    setMapUploading(true);
+    try {
+      await updateDocument(COLLECTIONS.organizations, organizationId, {
+        propertyMapStoragePath: deleteField(),
+        updatedAt: dateToTimestamp(new Date()),
+      });
+      try {
+        await deleteFile(propertyMapStoragePath);
+      } catch {
+        /* ignore */
+      }
+      setPropertyMapStoragePath(null);
+      setPropertyMapUrl(null);
+      setPlacingPinForBuildingId(null);
+      toast.success("Property map removed.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove map.");
+    } finally {
+      setMapUploading(false);
+    }
+  }
+
+  async function handleMapImageClick(e: MouseEvent<HTMLImageElement>) {
+    if (!placingPinForBuildingId || !organizationId) return;
+    const img = mapImgRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
+    const ox = e.clientX - rect.left;
+    const oy = e.clientY - rect.top;
+    const pct = offsetToMapPercent(img, ox, oy);
+    if (!pct) {
+      toast.error("Click inside the visible map area.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateDocument(COLLECTIONS.buildings, placingPinForBuildingId, {
+        mapPinX: pct.x,
+        mapPinY: pct.y,
+        updatedAt: dateToTimestamp(new Date()),
+      });
+      setPlacingPinForBuildingId(null);
+      toast.success("Map pin saved.");
+      await refreshData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save pin.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function downloadCsvTemplate() {
+    const blob = new Blob([BUILDINGS_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "buildings-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCsvFileSelected(file: File) {
+    if (!organizationId) return;
+    const text = await file.text();
+    const { rows, issues } = parseBuildingsCsv(text);
+
+    if (rows.length === 0) {
+      const first = issues[0];
+      toast.error(first?.message ?? "No valid rows in CSV.");
+      if (issues.length > 1) {
+        toast.message(`${issues.length - 1} more issue(s) in CSV.`, { duration: 6000 });
+      }
+      return;
+    }
+
+    const existingCodes = new Set(buildings.map((b) => b.code.toUpperCase()));
+    const toCreate = rows.filter((r) => !existingCodes.has(r.code));
+    const skippedExisting = rows.length - toCreate.length;
+
+    if (toCreate.length === 0) {
+      toast.error("All rows match buildings that already exist (same code).");
+      return;
+    }
+
+    setCsvImporting(true);
+    const now = dateToTimestamp(new Date());
+    let created = 0;
+    try {
+      for (const row of toCreate) {
+        await addDocument(COLLECTIONS.buildings, {
+          organizationId,
+          name: row.name,
+          code: row.code,
+          address: row.address,
+          createdAt: now,
+          updatedAt: now,
+        } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
+          createdAt: ReturnType<typeof dateToTimestamp>;
+          updatedAt: ReturnType<typeof dateToTimestamp>;
+        });
+        created++;
+      }
+
+      const parts = [`Created ${created} building(s).`];
+      if (skippedExisting > 0) parts.push(`${skippedExisting} skipped (code already exists).`);
+      if (issues.length > 0) parts.push(`${issues.length} row(s) skipped (see issues).`);
+      toast.success(parts.join(" "));
+
+      if (issues.length > 0) {
+        const preview = issues
+          .slice(0, 5)
+          .map((i) => `Line ${i.line}: ${i.message}`)
+          .join("\n");
+        toast.message(preview + (issues.length > 5 ? "\n…" : ""), { duration: 8000 });
+      }
+
+      await refreshData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk import failed.");
+    } finally {
+      setCsvImporting(false);
+      if (csvInputRef.current) csvInputRef.current.value = "";
+    }
+  }
+
   if (!organizationId) {
     return (
       <div className={adminEmptyStateClass}>
@@ -203,7 +475,141 @@ export function BuildingsCrudClient() {
         </div>
       </div>
 
+      <div className={`${adminCardClass} mb-6`}>
+        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Property map</p>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Upload one site map for this organization. Select a building in the table to highlight its pin; use
+          &quot;Place pin&quot; then click the map to set coordinates.
+        </p>
+        {placingPinForBuildingId && (
+          <p className="mt-2 rounded-md bg-accent/15 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-100">
+            Click on the map image to place the pin for{" "}
+            <span className="font-semibold">
+              {buildings.find((b) => b.id === placingPinForBuildingId)?.code ?? "this building"}
+            </span>
+            .{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => setPlacingPinForBuildingId(null)}
+            >
+              Cancel
+            </button>
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            ref={mapFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handlePropertyMapFile(f);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => mapFileInputRef.current?.click()}
+            disabled={mapUploading || saving}
+            className={adminPrimaryBtnCompactClass}
+          >
+            {mapUploading ? "Uploading…" : propertyMapUrl ? "Replace map image" : "Upload map image"}
+          </button>
+          {propertyMapUrl && (
+            <button
+              type="button"
+              onClick={() => void handleRemovePropertyMap()}
+              disabled={mapUploading}
+              className={adminSecondaryBtnClass}
+            >
+              Remove map
+            </button>
+          )}
+        </div>
+        <div className="mt-4">
+          {propertyMapUrl ? (
+            <div className="relative inline-block max-w-full rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={mapImgRef}
+                src={propertyMapUrl}
+                alt="Property map"
+                className={`block max-h-[min(420px,70vh)] max-w-full object-contain ${
+                  placingPinForBuildingId ? "cursor-crosshair" : "cursor-default"
+                }`}
+                onLoad={bumpMapLayout}
+                onClick={(e) => void handleMapImageClick(e)}
+              />
+              <div className="pointer-events-none absolute inset-0">
+                {pinOverlay.map((pin) => (
+                  <div
+                    key={pin.id}
+                    className="absolute flex -translate-x-1/2 -translate-y-full flex-col items-center"
+                    style={{ left: pin.left, top: pin.top }}
+                  >
+                    <span
+                      className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold shadow ${
+                        pin.selected
+                          ? "bg-accent text-white ring-2 ring-white dark:ring-zinc-900"
+                          : "bg-zinc-900/85 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      }`}
+                    >
+                      {pin.code}
+                    </span>
+                    <span
+                      className={`mt-0.5 h-2 w-2 rotate-45 ${
+                        pin.selected ? "bg-accent" : "bg-zinc-900 dark:bg-zinc-100"
+                      }`}
+                      aria-hidden
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400">
+              No map yet. Upload an image of your property to place building pins.
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className={adminCardClass}>
+        <div className="mb-4 border-b border-zinc-200 pb-3 dark:border-zinc-800">
+          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Bulk CSV import</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            First row: <span className="font-mono">code,name,address</span> (address optional). Codes are uppercased;
+            quotes supported for commas in fields.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={downloadCsvTemplate}
+              className={adminSecondaryBtnClass}
+            >
+              Download template
+            </button>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleCsvFileSelected(f);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => csvInputRef.current?.click()}
+              disabled={csvImporting || saving}
+              className={adminPrimaryBtnCompactClass}
+            >
+              {csvImporting ? "Importing…" : "Upload CSV"}
+            </button>
+          </div>
+        </div>
         <div className="grid gap-3 md:grid-cols-4">
           <input
             value={createForm.name}
@@ -247,21 +653,31 @@ export function BuildingsCrudClient() {
           />
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[860px] w-full border-collapse text-sm">
+          <table className="min-w-[980px] w-full border-collapse text-sm">
             <thead>
               <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Address</th>
                 <th className="px-4 py-3">Rooms</th>
+                <th className="px-4 py-3">Map pin</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredBuildings.map((building) => {
                 const isEditing = editingId === building.id;
+                const rowSelected = selectedBuildingId === building.id;
                 return (
-                  <tr key={building.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                  <tr
+                    key={building.id}
+                    className={`border-b border-zinc-100 dark:border-zinc-800 ${
+                      !isEditing && rowSelected ? "bg-accent/10 dark:bg-accent/15" : ""
+                    } ${!isEditing ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (!isEditing) setSelectedBuildingId(building.id);
+                    }}
+                  >
                     <td className="px-4 py-4 font-semibold text-zinc-900 dark:text-zinc-100">
                       {isEditing ? (
                         <input
@@ -296,13 +712,40 @@ export function BuildingsCrudClient() {
                       )}
                     </td>
                     <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">{roomCountByBuilding[building.id] ?? 0}</td>
+                    <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">
+                      {isEditing ? (
+                        <div className="flex flex-wrap items-center gap-1">
+                          <input
+                            value={editForm.mapPinX}
+                            onChange={(e) => setEditForm((s) => ({ ...s, mapPinX: e.target.value }))}
+                            placeholder="X"
+                            title="Map pin X % (0–100)"
+                            className={`${adminInputTableClass} w-14`}
+                          />
+                          <span className="text-zinc-400">,</span>
+                          <input
+                            value={editForm.mapPinY}
+                            onChange={(e) => setEditForm((s) => ({ ...s, mapPinY: e.target.value }))}
+                            placeholder="Y"
+                            title="Map pin Y % (0–100)"
+                            className={`${adminInputTableClass} w-14`}
+                          />
+                          <span className="text-xs text-zinc-400">%</span>
+                        </div>
+                      ) : (
+                        formatMapPin(building)
+                      )}
+                    </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         {isEditing ? (
                           <>
                             <button
                               type="button"
-                              onClick={() => void handleSaveEdit()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleSaveEdit();
+                              }}
                               disabled={saving}
                               className={adminPrimaryBtnCompactClass}
                             >
@@ -310,7 +753,8 @@ export function BuildingsCrudClient() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setEditingId(null);
                                 setEditForm(EMPTY_FORM);
                               }}
@@ -323,14 +767,33 @@ export function BuildingsCrudClient() {
                           <>
                             <button
                               type="button"
-                              onClick={() => startEditing(building)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(building);
+                              }}
                               className={adminSecondaryBtnClass}
                             >
                               Edit
                             </button>
                             <button
                               type="button"
-                              onClick={() => void handleDeleteBuilding(building.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBuildingId(building.id);
+                                setPlacingPinForBuildingId(building.id);
+                              }}
+                              disabled={!propertyMapUrl || saving}
+                              title={!propertyMapUrl ? "Upload a property map first" : undefined}
+                              className={adminSecondaryBtnClass}
+                            >
+                              Place pin
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleDeleteBuilding(building.id);
+                              }}
                               disabled={saving}
                               className={adminSecondaryBtnClass}
                             >
@@ -339,6 +802,7 @@ export function BuildingsCrudClient() {
                             <Link
                               href={`/admin/rooms?organizationId=${organizationId}&buildingId=${building.id}`}
                               className={adminSecondaryBtnClass}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               View rooms
                             </Link>
@@ -351,7 +815,7 @@ export function BuildingsCrudClient() {
               })}
               {!loading && filteredBuildings.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     No buildings found for this organization.
                   </td>
                 </tr>

@@ -66,6 +66,8 @@ export interface Organization {
   state?: string;
   postalCode?: string;
   website?: string;
+  /** Firebase Storage path for a site/property map image (organization-wide). */
+  propertyMapStoragePath?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,6 +97,10 @@ export interface Building {
   name: string;
   code: string;
   address?: string;
+  /** Horizontal position on the property map image, 0–100 (% of visible image width). */
+  mapPinX?: number;
+  /** Vertical position on the property map image, 0–100 (% of visible image height). */
+  mapPinY?: number;
   createdAt: Date;
   updatedAt: Date;
 }

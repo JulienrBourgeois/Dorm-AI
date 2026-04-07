@@ -11,6 +11,10 @@ service firebase.storage {
       allow read, write: if signedIn();
     }
 
+    match /organizations/{organizationId}/property-map/{fileName} {
+      allow read, write: if signedIn();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
