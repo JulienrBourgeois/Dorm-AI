@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/firebase/firestore";
 import { where } from "firebase/firestore";
 import {
+  ALL_ORGANIZATIONS_HUB_HREF,
   hrefForOrgEntry,
   isOrgRowSelectedForPortal,
   orgEntriesForPortal,
@@ -194,6 +195,11 @@ export function PortalOrgSelector({ portal }: Props) {
     setOpen(false);
   }
 
+  function selectAllOrganizations() {
+    router.push(ALL_ORGANIZATIONS_HUB_HREF);
+    setOpen(false);
+  }
+
   return (
     <div className="relative w-fit min-w-0 max-w-xs sm:max-w-sm" ref={rootRef}>
       <button
@@ -215,6 +221,18 @@ export function PortalOrgSelector({ portal }: Props) {
           role="listbox"
           aria-label="Organization"
         >
+          <button
+            type="button"
+            role="option"
+            aria-selected={false}
+            onClick={selectAllOrganizations}
+            className="flex w-full flex-col items-start gap-0.5 border-b border-zinc-100 px-3 py-2.5 text-left text-sm text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <span className="font-medium">All organizations</span>
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              Home
+            </span>
+          </button>
           {portalEntries.length === 0 ? (
             <div className="px-3 py-2.5 text-sm text-zinc-500 dark:text-zinc-400">
               {membershipsLoading ? "Loading…" : "No organizations for this portal."}

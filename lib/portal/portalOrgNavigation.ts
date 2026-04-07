@@ -2,6 +2,9 @@ import type { MembershipRole } from "@/types";
 
 export type PortalKind = "admin" | "inspector" | "tenant";
 
+/** Shared hub to switch organization or role; linked from every portal org menu. */
+export const ALL_ORGANIZATIONS_HUB_HREF = "/home/dashboard";
+
 /** Membership rows visible for the current portal (one role per portal surface). */
 export function orgEntriesForPortal<T extends { membershipRole: string }>(
   entries: T[],
