@@ -434,7 +434,10 @@ export function TenantsLifecycleClient() {
                           Details
                         </Link>
                         {row.status === "INVITED" && row.pendingInviteCode ? (
-                          <CopyInviteLinkActions code={row.pendingInviteCode} />
+                          <CopyInviteLinkActions
+                            code={row.pendingInviteCode}
+                            inviteeEmail={row.email.includes("@") ? row.email : undefined}
+                          />
                         ) : null}
 
                         <AdminSelect

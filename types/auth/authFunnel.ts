@@ -15,6 +15,8 @@ export interface AuthFunnelState {
   password: string;
   confirmPassword: string;
   loading: boolean;
+  /** True when `next` is returning to /join (membership invite). */
+  joinInviteReturn: boolean;
 }
 
 export interface AuthFunnelActions {

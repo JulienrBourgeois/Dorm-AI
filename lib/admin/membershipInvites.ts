@@ -74,7 +74,7 @@ export async function createTenantInvite(params: {
     organizationId,
     role: "TENANT",
     status: "INVITED",
-    roomId: roomId || undefined,
+    roomId: roomId || null,
     pendingInviteCode: code,
     createdAt: now,
     updatedAt: now,
