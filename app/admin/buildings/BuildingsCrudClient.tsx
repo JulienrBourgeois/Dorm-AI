@@ -63,7 +63,9 @@ const BUILDINGS_CSV_TEMPLATE = `code,name,address
 BERK,Berkeley Hall,123 Campus Drive
 `;
 
-const CSV_IMPORT_BATCH_SIZE = 400;
+const CSV_IMPORT_BATCH_SIZE = 500;
+const CSV_IMPORT_CONCURRENCY = 3;
+const SUCCESS_CHIP_DISPLAY_LIMIT = 100;
 
 type CsvImportProgress = {
   stage: "reading" | "writing";
@@ -87,6 +89,7 @@ export function BuildingsCrudClient() {
   const [editForm, setEditForm] = useState<BuildingForm>(EMPTY_FORM);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvImportProgress, setCsvImportProgress] = useState<CsvImportProgress | null>(null);
+  const [lastImportedBuildings, setLastImportedBuildings] = useState<Array<{ code: string; name: string }>>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const mapFileInputRef = useRef<HTMLInputElement>(null);
   const mapImgRef = useRef<HTMLImageElement>(null);
@@ -425,6 +428,7 @@ export function BuildingsCrudClient() {
   async function handleCsvFileSelected(file: File) {
     if (!organizationId) return;
     setCsvImporting(true);
+    setLastImportedBuildings([]);
     setCsvImportProgress({
       stage: "reading",
       fileName: file.name,
@@ -474,40 +478,53 @@ export function BuildingsCrudClient() {
     });
     const now = dateToTimestamp(new Date());
     let created = 0;
+    const successfulImports: Array<{ code: string; name: string }> = [];
     try {
       const buildingsCollection = collection(db, COLLECTIONS.buildings);
+      const chunks: Array<Array<(typeof toCreate)[number]>> = [];
       for (let start = 0; start < toCreate.length; start += CSV_IMPORT_BATCH_SIZE) {
-        const chunk = toCreate.slice(start, start + CSV_IMPORT_BATCH_SIZE);
-        const batch = writeBatch(db);
-        for (const row of chunk) {
-          const ref = doc(buildingsCollection);
-          batch.set(ref, {
-            organizationId,
-            name: row.name,
-            code: row.code,
-            address: row.address,
-            createdAt: now,
-            updatedAt: now,
-          } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
-            createdAt: ReturnType<typeof dateToTimestamp>;
-            updatedAt: ReturnType<typeof dateToTimestamp>;
-          });
-        }
-        await batch.commit();
-        created += chunk.length;
-        setCsvImportProgress((prev) =>
-          prev
-            ? {
-                ...prev,
-                stage: "writing",
-                completed: created,
-              }
-            : prev,
-        );
-        await new Promise<void>((resolve) => {
-          window.requestAnimationFrame(() => resolve());
-        });
+        chunks.push(toCreate.slice(start, start + CSV_IMPORT_BATCH_SIZE));
       }
+      let nextChunk = 0;
+      const workerCount = Math.min(CSV_IMPORT_CONCURRENCY, chunks.length);
+      await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+          while (true) {
+            const chunkIdx = nextChunk;
+            nextChunk += 1;
+            if (chunkIdx >= chunks.length) return;
+            const chunk = chunks[chunkIdx];
+            const batch = writeBatch(db);
+            for (const row of chunk) {
+              const ref = doc(buildingsCollection);
+              batch.set(ref, {
+                organizationId,
+                name: row.name,
+                code: row.code,
+                address: row.address,
+                createdAt: now,
+                updatedAt: now,
+              } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
+                createdAt: ReturnType<typeof dateToTimestamp>;
+                updatedAt: ReturnType<typeof dateToTimestamp>;
+              });
+            }
+            await batch.commit();
+            successfulImports.push(...chunk.map((row) => ({ code: row.code, name: row.name })));
+            created += chunk.length;
+            setCsvImportProgress((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    stage: "writing",
+                    completed: created,
+                  }
+                : prev,
+            );
+          }
+        }),
+      );
+      setLastImportedBuildings(successfulImports);
 
       const parts = [`Created ${created} building(s).`];
       if (skippedExisting > 0) parts.push(`${skippedExisting} skipped (code already exists).`);
@@ -770,6 +787,30 @@ export function BuildingsCrudClient() {
         <div className="border-b border-zinc-200 px-5 py-4 text-sm font-semibold text-zinc-800 dark:border-zinc-800 dark:text-zinc-100">
           Building inventory
         </div>
+        {lastImportedBuildings.length > 0 ? (
+          <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+              Successfully uploaded in last CSV import ({lastImportedBuildings.length})
+            </p>
+            <div className="mt-2 max-h-32 overflow-y-auto">
+              <div className="flex flex-wrap gap-2">
+                {lastImportedBuildings.slice(0, SUCCESS_CHIP_DISPLAY_LIMIT).map((b) => (
+                  <span
+                    key={`${b.code}-${b.name}`}
+                    className="rounded-full border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                  >
+                    {b.code} - {b.name}
+                  </span>
+                ))}
+                {lastImportedBuildings.length > SUCCESS_CHIP_DISPLAY_LIMIT ? (
+                  <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    +{lastImportedBuildings.length - SUCCESS_CHIP_DISPLAY_LIMIT} more
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="p-4 sm:p-5">
           <input
             value={search}

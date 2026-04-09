@@ -58,6 +58,8 @@ type InspectorRow = {
 const INSPECTOR_CSV_TEMPLATE = `name,email,building
 Alex Smith,alex@example.com,NH
 `;
+const BULK_INSPECTOR_INVITE_CONCURRENCY = 3;
+const SUCCESS_CHIP_DISPLAY_LIMIT = 100;
 
 export function InspectorsLifecycleClient() {
   const searchParams = useSearchParams();
@@ -67,6 +69,9 @@ export function InspectorsLifecycleClient() {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<InspectorRow[]>([]);
   const [buildings, setBuildings] = useState<Array<WithId<Building>>>([]);
+  const [lastBulkInvitedInspectors, setLastBulkInvitedInspectors] = useState<
+    Array<{ name: string; email: string }>
+  >([]);
   const [assignmentDrafts, setAssignmentDrafts] = useState<Record<string, string>>({});
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -181,35 +186,49 @@ export function InspectorsLifecycleClient() {
       const failures: string[] = [];
       let ok = 0;
       let failed = 0;
-      for (const row of parsed) {
-        let buildingId: string | undefined;
-        if (row.buildingCode?.trim()) {
-          const key = row.buildingCode.trim().toLowerCase();
-          const match = buildings.find((b) => b.code.trim().toLowerCase() === key);
-          if (!match) {
-            failed++;
-            failures.push(
-              `${row.email}: no building "${row.buildingCode}" — use the building code from Buildings.`,
-            );
-            continue;
+      setLastBulkInvitedInspectors([]);
+      const successful: Array<{ name: string; email: string }> = [];
+      const pending = [...parsed];
+      const workerCount = Math.min(BULK_INSPECTOR_INVITE_CONCURRENCY, pending.length);
+      await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+          while (true) {
+            const row = pending.shift();
+            if (!row) return;
+            let buildingId: string | undefined;
+            if (row.buildingCode?.trim()) {
+              const key = row.buildingCode.trim().toLowerCase();
+              const match = buildings.find((b) => b.code.trim().toLowerCase() === key);
+              if (!match) {
+                failed++;
+                failures.push(
+                  `${row.email}: no building "${row.buildingCode}" — use the building code from Buildings.`,
+                );
+                continue;
+              }
+              buildingId = match.id;
+            }
+            try {
+              await createInspectorInvite({
+                organizationId,
+                name: row.name,
+                email: row.email,
+                buildingId: buildingId ?? null,
+                currentUser: auth.currentUser,
+              });
+              ok++;
+              successful.push({ name: row.name, email: row.email });
+            } catch (e) {
+              failed++;
+              failures.push(
+                `${row.email}: ${e instanceof Error ? e.message : "Failed to create invite."}`,
+              );
+            }
           }
-          buildingId = match.id;
-        }
-        try {
-          await createInspectorInvite({
-            organizationId,
-            name: row.name,
-            email: row.email,
-            buildingId: buildingId ?? null,
-            currentUser: auth.currentUser,
-          });
-          ok++;
-        } catch (e) {
-          failed++;
-          failures.push(
-            `${row.email}: ${e instanceof Error ? e.message : "Failed to create invite."}`,
-          );
-        }
+        }),
+      );
+      if (successful.length > 0) {
+        setLastBulkInvitedInspectors(successful);
       }
       await refresh();
       return { ok, failed, failures };
@@ -365,6 +384,30 @@ export function InspectorsLifecycleClient() {
             className={`${adminInputClass} h-10 sm:max-w-xs`}
           />
         </div>
+        {lastBulkInvitedInspectors.length > 0 ? (
+          <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+              Successfully uploaded in last CSV import ({lastBulkInvitedInspectors.length})
+            </p>
+            <div className="mt-2 max-h-32 overflow-y-auto">
+              <div className="flex flex-wrap gap-2">
+                {lastBulkInvitedInspectors.slice(0, SUCCESS_CHIP_DISPLAY_LIMIT).map((inspector) => (
+                  <span
+                    key={`${inspector.email}-${inspector.name}`}
+                    className="rounded-full border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                  >
+                    {inspector.name} - {inspector.email}
+                  </span>
+                ))}
+                {lastBulkInvitedInspectors.length > SUCCESS_CHIP_DISPLAY_LIMIT ? (
+                  <span className="rounded-full border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    +{lastBulkInvitedInspectors.length - SUCCESS_CHIP_DISPLAY_LIMIT} more
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="min-w-[980px] w-full border-collapse text-sm">
             <caption className="sr-only">
