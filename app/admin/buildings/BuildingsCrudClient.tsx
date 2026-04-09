@@ -4,8 +4,9 @@ import type { MouseEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { deleteField, where } from "firebase/firestore";
+import { collection, deleteField, doc, where, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
+import { db } from "@/app/lib/firebase/app";
 import { parseBuildingsCsv } from "@/lib/csv/parseBuildingsCsv";
 import { mapPercentToPixelOffset, offsetToMapPercent } from "@/lib/map/propertyMapGeometry";
 import { deleteFile, getDownloadUrl, uploadFile } from "@/app/lib/firebase/storage";
@@ -62,6 +63,17 @@ const BUILDINGS_CSV_TEMPLATE = `code,name,address
 BERK,Berkeley Hall,123 Campus Drive
 `;
 
+const CSV_IMPORT_BATCH_SIZE = 400;
+
+type CsvImportProgress = {
+  stage: "reading" | "writing";
+  fileName: string;
+  total: number;
+  completed: number;
+  skippedExisting: number;
+  issues: number;
+};
+
 export function BuildingsCrudClient() {
   const searchParams = useSearchParams();
   const organizationId = searchParams.get("organizationId")?.trim() ?? "";
@@ -74,6 +86,7 @@ export function BuildingsCrudClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<BuildingForm>(EMPTY_FORM);
   const [csvImporting, setCsvImporting] = useState(false);
+  const [csvImportProgress, setCsvImportProgress] = useState<CsvImportProgress | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const mapFileInputRef = useRef<HTMLInputElement>(null);
   const mapImgRef = useRef<HTMLImageElement>(null);
@@ -178,6 +191,19 @@ export function BuildingsCrudClient() {
     });
   }, [buildings, search]);
 
+  const existingBuildingCodes = useMemo(
+    () => new Set(buildings.map((b) => b.code.trim().toUpperCase())),
+    [buildings],
+  );
+
+  function hasDuplicateBuildingCode(code: string, excludeId?: string): boolean {
+    const normalized = code.trim().toUpperCase();
+    return buildings.some(
+      (building) =>
+        building.id !== excludeId && building.code.trim().toUpperCase() === normalized,
+    );
+  }
+
   async function handleCreateBuilding() {
     if (!organizationId) return;
     const name = createForm.name.trim();
@@ -185,6 +211,10 @@ export function BuildingsCrudClient() {
     const address = createForm.address.trim();
     if (!name || !code) {
       toast.error("Building name and code are required.");
+      return;
+    }
+    if (hasDuplicateBuildingCode(code)) {
+      toast.error(`A building with code "${code}" already exists.`);
       return;
     }
 
@@ -233,6 +263,10 @@ export function BuildingsCrudClient() {
     const address = editForm.address.trim();
     if (!name || !code) {
       toast.error("Building name and code are required.");
+      return;
+    }
+    if (hasDuplicateBuildingCode(code, editingId)) {
+      toast.error(`A building with code "${code}" already exists.`);
       return;
     }
 
@@ -390,6 +424,15 @@ export function BuildingsCrudClient() {
 
   async function handleCsvFileSelected(file: File) {
     if (!organizationId) return;
+    setCsvImporting(true);
+    setCsvImportProgress({
+      stage: "reading",
+      fileName: file.name,
+      total: 0,
+      completed: 0,
+      skippedExisting: 0,
+      issues: 0,
+    });
     const text = await file.text();
     const { rows, issues } = parseBuildingsCsv(text);
 
@@ -399,35 +442,71 @@ export function BuildingsCrudClient() {
       if (issues.length > 1) {
         toast.message(`${issues.length - 1} more issue(s) in CSV.`, { duration: 6000 });
       }
+      setCsvImporting(false);
+      setCsvImportProgress(null);
+      if (csvInputRef.current) csvInputRef.current.value = "";
       return;
     }
 
-    const existingCodes = new Set(buildings.map((b) => b.code.toUpperCase()));
-    const toCreate = rows.filter((r) => !existingCodes.has(r.code));
+    const seenCodes = new Set(existingBuildingCodes);
+    const toCreate = rows.filter((r) => {
+      if (seenCodes.has(r.code)) return false;
+      seenCodes.add(r.code);
+      return true;
+    });
     const skippedExisting = rows.length - toCreate.length;
 
     if (toCreate.length === 0) {
       toast.error("All rows match buildings that already exist (same code).");
+      setCsvImporting(false);
+      setCsvImportProgress(null);
+      if (csvInputRef.current) csvInputRef.current.value = "";
       return;
     }
 
-    setCsvImporting(true);
+    setCsvImportProgress({
+      stage: "writing",
+      fileName: file.name,
+      total: toCreate.length,
+      completed: 0,
+      skippedExisting,
+      issues: issues.length,
+    });
     const now = dateToTimestamp(new Date());
     let created = 0;
     try {
-      for (const row of toCreate) {
-        await addDocument(COLLECTIONS.buildings, {
-          organizationId,
-          name: row.name,
-          code: row.code,
-          address: row.address,
-          createdAt: now,
-          updatedAt: now,
-        } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
-          createdAt: ReturnType<typeof dateToTimestamp>;
-          updatedAt: ReturnType<typeof dateToTimestamp>;
+      const buildingsCollection = collection(db, COLLECTIONS.buildings);
+      for (let start = 0; start < toCreate.length; start += CSV_IMPORT_BATCH_SIZE) {
+        const chunk = toCreate.slice(start, start + CSV_IMPORT_BATCH_SIZE);
+        const batch = writeBatch(db);
+        for (const row of chunk) {
+          const ref = doc(buildingsCollection);
+          batch.set(ref, {
+            organizationId,
+            name: row.name,
+            code: row.code,
+            address: row.address,
+            createdAt: now,
+            updatedAt: now,
+          } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
+            createdAt: ReturnType<typeof dateToTimestamp>;
+            updatedAt: ReturnType<typeof dateToTimestamp>;
+          });
+        }
+        await batch.commit();
+        created += chunk.length;
+        setCsvImportProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                stage: "writing",
+                completed: created,
+              }
+            : prev,
+        );
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve());
         });
-        created++;
       }
 
       const parts = [`Created ${created} building(s).`];
@@ -448,6 +527,7 @@ export function BuildingsCrudClient() {
       toast.error(err instanceof Error ? err.message : "Bulk import failed.");
     } finally {
       setCsvImporting(false);
+      setCsvImportProgress(null);
       if (csvInputRef.current) csvInputRef.current.value = "";
     }
   }
@@ -606,9 +686,55 @@ export function BuildingsCrudClient() {
               disabled={csvImporting || saving}
               className={adminPrimaryBtnCompactClass}
             >
-              {csvImporting ? "Importing…" : "Upload CSV"}
+              {csvImportProgress?.stage === "reading"
+                ? "Reading CSV…"
+                : csvImporting
+                  ? `Importing ${csvImportProgress?.completed ?? 0}/${csvImportProgress?.total ?? 0}`
+                  : "Upload CSV"}
             </button>
           </div>
+          {csvImportProgress ? (
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                <span className="min-w-0 truncate">
+                  {csvImportProgress.stage === "reading"
+                    ? `Reading ${csvImportProgress.fileName}…`
+                    : `Importing ${csvImportProgress.fileName}`}
+                </span>
+                <span>
+                  {csvImportProgress.stage === "reading"
+                    ? "Preparing rows…"
+                    : `${csvImportProgress.completed} / ${csvImportProgress.total} created`}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width] duration-300"
+                  style={{
+                    width:
+                      csvImportProgress.stage === "reading"
+                        ? "12%"
+                        : `${Math.max(
+                            6,
+                            Math.round(
+                              (csvImportProgress.completed /
+                                Math.max(csvImportProgress.total, 1)) *
+                                100,
+                            ),
+                          )}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                {csvImportProgress.skippedExisting > 0
+                  ? `${csvImportProgress.skippedExisting} duplicate code(s) already existed and will be skipped. `
+                  : ""}
+                {csvImportProgress.issues > 0
+                  ? `${csvImportProgress.issues} CSV issue(s) will be reported after import.`
+                  : "Building codes are deduped against this organization before write."}
+              </p>
+            </div>
+          ) : null}
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <input
