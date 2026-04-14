@@ -9,7 +9,10 @@
     "lint": "eslint",
     "clean": "rm -rf .next",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/rules/firestore.rules.test.mjs\"",
-    "test:e2e": "playwright test"
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
     "firebase": "^12.10.0",
@@ -30,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

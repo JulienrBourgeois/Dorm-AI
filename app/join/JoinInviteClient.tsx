@@ -5,23 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
-
-function buildJoinPath(code: string, invitedEmail: string): string {
-  const e = invitedEmail.trim().toLowerCase();
-  const q = new URLSearchParams({ code });
-  if (e) q.set("e", e);
-  return `/join?${q.toString()}`;
-}
-
-function buildSignupReturnUrl(code: string, invitedEmail: string): string {
-  const joinPath = buildJoinPath(code, invitedEmail);
-  const em = invitedEmail.trim().toLowerCase();
-  const qs = new URLSearchParams();
-  qs.set("step", "email-login");
-  qs.set("next", joinPath);
-  if (em) qs.set("email", em);
-  return `/signup?${qs.toString()}`;
-}
+import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
+import { buildInviteAuthReturnUrl, decideInviteEntry } from "@/lib/auth/inviteDeepLinkAuth";
 
 export function JoinInviteClient() {
   const router = useRouter();
@@ -48,11 +33,48 @@ export function JoinInviteClient() {
     }
 
     const unsubscribe = subscribeToAuthState(async (user) => {
-      if (!user) {
+      const routeToInviteAuth = async (currentUserEmail: string | null | undefined) => {
         if (unauthRedirectRef.current) return;
         unauthRedirectRef.current = true;
-        setMessage("Sign in with the email that received this invite. We’ll bring you right back.");
-        router.replace(buildSignupReturnUrl(code, invitedEmail));
+        try {
+          const inviteEmailExists = invitedEmail ? await isUserExistsByEmail(invitedEmail) : true;
+          const decision = decideInviteEntry(currentUserEmail, invitedEmail, inviteEmailExists);
+          if (decision.action !== "redirect") {
+            unauthRedirectRef.current = false;
+            return;
+          }
+          setMessage(
+            decision.step === "email-signup"
+              ? invitedEmail
+                ? `Finish creating your account as ${invitedEmail} to accept this invite.`
+                : "Create an account to accept this invite."
+              : invitedEmail
+                ? `Sign in as ${invitedEmail} to accept this invite.`
+                : "Sign in with the email that received this invite. We’ll bring you right back.",
+          );
+          router.replace(buildInviteAuthReturnUrl(code, invitedEmail, decision.step));
+        } catch {
+          unauthRedirectRef.current = false;
+          setFailed(true);
+          setMessage("Could not verify invite email yet. Try again in a moment.");
+        }
+      };
+
+      if (!user) {
+        if (unauthRedirectRef.current) return;
+        await routeToInviteAuth(null);
+        return;
+      }
+
+      const actorEmail = (user.email ?? "").trim().toLowerCase();
+      if (invitedEmail && actorEmail && actorEmail !== invitedEmail) {
+        try {
+          await clearSessionCookie();
+        } catch {
+          /* ignore */
+        }
+        await signOutUser();
+        await routeToInviteAuth(actorEmail);
         return;
       }
 
@@ -92,13 +114,7 @@ export function JoinInviteClient() {
               /* ignore */
             }
             await signOutUser();
-            unauthRedirectRef.current = true;
-            setMessage(
-              invitedEmail
-                ? `Sign in or create an account as ${invitedEmail} to accept this invite.`
-                : "Sign in with the email that received this invite.",
-            );
-            router.replace(buildSignupReturnUrl(code, invitedEmail));
+            await routeToInviteAuth(user.email);
             return;
           }
 
@@ -131,7 +147,11 @@ export function JoinInviteClient() {
           {failed ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                href={code ? buildSignupReturnUrl(code, invitedEmail) : "/signup?step=email-login"}
+                href={
+                  code
+                    ? buildInviteAuthReturnUrl(code, invitedEmail, "email-login")
+                    : "/signup?step=email-login"
+                }
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
               >
                 Try signing in again

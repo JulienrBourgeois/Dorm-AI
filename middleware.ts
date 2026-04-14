@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  extractRedirectTarget,
+  hasSessionCookie,
+} from "@/lib/auth/middlewareRequestHelpers";
 
-const SESSION_COOKIE_NAME = "__session";
 const ADMIN_LOGIN_PATH = "/admin/login";
 
 const PUBLIC_PATHS = [
@@ -13,30 +16,6 @@ const PUBLIC_PATHS = [
   "/setup-funnel",
   "/home",
 ] as const;
-
-function hasSessionCookie(cookieHeader: string | null): boolean {
-  if (!cookieHeader) return false;
-  return cookieHeader.includes(`${SESSION_COOKIE_NAME}=`);
-}
-
-function extractRedirectTarget(body: unknown): string | null {
-  if (
-    body &&
-    typeof body === "object" &&
-    "data" in body &&
-    body.data &&
-    typeof body.data === "object" &&
-    "redirect" in body.data
-  ) {
-    const value = (body.data as { redirect?: unknown }).redirect;
-    return typeof value === "string" ? value : null;
-  }
-  if (body && typeof body === "object" && "redirect" in body) {
-    const value = (body as { redirect?: unknown }).redirect;
-    return typeof value === "string" ? value : null;
-  }
-  return null;
-}
 
 async function resolveRedirectTarget(origin: string, pathname: string, cookieHeader: string | null): Promise<string | null> {
   const redirectPathUrl = new URL("/api/auth/redirect-path", origin);
