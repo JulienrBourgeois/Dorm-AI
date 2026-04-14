@@ -24,6 +24,7 @@ export function JoinInviteClient() {
   const [failed, setFailed] = useState(false);
   const attemptRef = useRef(false);
   const unauthRedirectRef = useRef(false);
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     if (!code) {
@@ -33,6 +34,42 @@ export function JoinInviteClient() {
     }
 
     const unsubscribe = subscribeToAuthState(async (user) => {
+      const waitForSignedOut = async (timeoutMs = 3000) => {
+        await new Promise<void>((resolve) => {
+          let settled = false;
+          const timeout = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            off();
+            resolve();
+          }, timeoutMs);
+          const off = subscribeToAuthState((nextUser) => {
+            if (settled || nextUser) return;
+            settled = true;
+            clearTimeout(timeout);
+            off();
+            resolve();
+          });
+        });
+      };
+
+      const signOutAndRouteToInviteAuth = async (currentUserEmail: string | null | undefined) => {
+        if (signingOutRef.current) return;
+        signingOutRef.current = true;
+        try {
+          try {
+            await clearSessionCookie();
+          } catch {
+            /* ignore */
+          }
+          await signOutUser();
+          await waitForSignedOut();
+        } finally {
+          signingOutRef.current = false;
+        }
+        await routeToInviteAuth(currentUserEmail);
+      };
+
       const routeToInviteAuth = async (currentUserEmail: string | null | undefined) => {
         if (unauthRedirectRef.current) return;
         unauthRedirectRef.current = true;
@@ -68,13 +105,7 @@ export function JoinInviteClient() {
 
       const actorEmail = (user.email ?? "").trim().toLowerCase();
       if (invitedEmail && actorEmail && actorEmail !== invitedEmail) {
-        try {
-          await clearSessionCookie();
-        } catch {
-          /* ignore */
-        }
-        await signOutUser();
-        await routeToInviteAuth(actorEmail);
+        await signOutAndRouteToInviteAuth(actorEmail);
         return;
       }
 
@@ -108,13 +139,7 @@ export function JoinInviteClient() {
 
           if (wrongEmail) {
             attemptRef.current = false;
-            try {
-              await clearSessionCookie();
-            } catch {
-              /* ignore */
-            }
-            await signOutUser();
-            await routeToInviteAuth(user.email);
+            await signOutAndRouteToInviteAuth(user.email);
             return;
           }
 
