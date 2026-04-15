@@ -23,6 +23,7 @@ import {
   formatOrganizationCardSubtitle,
 } from "@/lib/organizationDisplay";
 import { Loader } from "@/components/Loader";
+import { AdminBulkUploadAllModal } from "@/components/admin/AdminBulkUploadAllModal";
 
 type InspectionRow = WithId<Inspection> & { roomNumber: string };
 
@@ -60,6 +61,8 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const organizationId = searchParams.get("organizationId")?.trim() ?? "";
+  const bulkUpload = searchParams.get("bulkUpload")?.trim() ?? "";
+  const defaultOpenBulk = bulkUpload === "1" || bulkUpload.toLowerCase() === "true";
 
   const [loading, setLoading] = useState(true);
   const [org, setOrg] = useState<Organization | null>(null);
@@ -320,6 +323,12 @@ export default function AdminDashboardPage() {
             >
               + Schedule inspection
             </Link>
+            <AdminBulkUploadAllModal
+              organizationId={organizationId}
+              buildings={buildings}
+              rooms={rooms}
+              defaultOpen={defaultOpenBulk}
+            />
             <Link
               href={`${q("/admin/tenants")}#tenant-records`}
               className="flex h-11 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
