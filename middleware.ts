@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import {
   extractRedirectTarget,
   hasSessionCookie,
+  isInviteAuthReturnPath,
 } from "@/lib/auth/middlewareRequestHelpers";
 
 const ADMIN_LOGIN_PATH = "/admin/login";
@@ -109,8 +110,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Invite redemption must run in the app (wrong account → sign out). Do not bounce to dashboard.
-  if (pathname === "/join" || pathname.startsWith("/join/")) {
+  const authReturnTarget =
+    request.nextUrl.searchParams.get("next") ?? request.nextUrl.searchParams.get("redirect");
+
+  // Invite redemption must run in the app (wrong account -> sign out). Do not bounce
+  // invite links or their auth return pages back to the dashboard while the cookie clears.
+  if (
+    pathname === "/join" ||
+    pathname.startsWith("/join/") ||
+    isInviteAuthReturnPath(pathname, authReturnTarget)
+  ) {
     return NextResponse.next();
   }
 

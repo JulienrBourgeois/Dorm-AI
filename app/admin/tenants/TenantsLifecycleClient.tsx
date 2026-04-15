@@ -20,6 +20,10 @@ import { BulkInviteCsvCard } from "@/components/admin/BulkInviteCsvCard";
 import { InviteJoinHelpCard } from "@/components/admin/InviteJoinHelpCard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import { membershipStatusLabel } from "@/lib/admin/membershipDisplay";
+import {
+  dedupeMembershipRecordsByEmail,
+  isInvitePlaceholderUserId,
+} from "@/lib/admin/membershipRecords";
 import { withAdminOrganizationId } from "@/lib/admin/adminOrgQuery";
 import {
   adminCardClass,
@@ -106,11 +110,12 @@ export function TenantsLifecycleClient() {
           pendingInviteCode: m.pendingInviteCode,
         });
       }
-      nextRows.sort((a, b) => a.name.localeCompare(b.name));
-      setRows(nextRows);
+      const dedupedRows = dedupeMembershipRecordsByEmail(nextRows);
+      dedupedRows.sort((a, b) => a.name.localeCompare(b.name));
+      setRows(dedupedRows);
 
       const nextDrafts: Record<string, string> = {};
-      for (const row of nextRows) {
+      for (const row of dedupedRows) {
         nextDrafts[row.membershipId] = row.roomId ?? "";
       }
       setAssignmentDrafts(nextDrafts);
@@ -217,6 +222,12 @@ export function TenantsLifecycleClient() {
   );
 
   async function updateStatus(membershipId: string, nextStatus: MembershipStatus) {
+    const row = rows.find((entry) => entry.membershipId === membershipId);
+    if (nextStatus === "ACTIVE" && row && isInvitePlaceholderUserId(row.userId)) {
+      toast.error("Invites become active only after the tenant signs in and accepts the invite.");
+      return;
+    }
+
     setSaving(true);
     try {
       await updateDocument(COLLECTIONS.memberships, membershipId, {
@@ -401,6 +412,7 @@ export function TenantsLifecycleClient() {
               ) : null}
               {!loading &&
                 filteredRows.map((row, index) => {
+                const isInvitePlaceholder = isInvitePlaceholderUserId(row.userId);
                 const roomLabel = row.roomId ? roomsById[row.roomId]?.number ?? "Unknown room" : "—";
                 const statusClass =
                   row.status === "ACTIVE"
@@ -462,16 +474,7 @@ export function TenantsLifecycleClient() {
                           Assign room
                         </button>
 
-                        {row.status !== "ACTIVE" ? (
-                          <button
-                            type="button"
-                            onClick={() => void updateStatus(row.membershipId, "ACTIVE")}
-                            disabled={saving}
-                            className={adminSecondaryBtnClass}
-                          >
-                            Activate
-                          </button>
-                        ) : (
+                        {row.status === "ACTIVE" ? (
                           <button
                             type="button"
                             onClick={() => void updateStatus(row.membershipId, "INACTIVE")}
@@ -479,6 +482,24 @@ export function TenantsLifecycleClient() {
                             className={adminSecondaryBtnClass}
                           >
                             Deactivate
+                          </button>
+                        ) : row.status === "INVITED" && isInvitePlaceholder ? (
+                          <button
+                            type="button"
+                            onClick={() => void updateStatus(row.membershipId, "INACTIVE")}
+                            disabled={saving}
+                            className={adminSecondaryBtnClass}
+                          >
+                            Archive invite
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void updateStatus(row.membershipId, "ACTIVE")}
+                            disabled={saving}
+                            className={adminSecondaryBtnClass}
+                          >
+                            Activate
                           </button>
                         )}
                       </div>

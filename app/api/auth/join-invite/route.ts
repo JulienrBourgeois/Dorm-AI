@@ -1,4 +1,5 @@
 import { getAdminFirestore } from "@/app/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS } from "@/app/lib/firebase/firestore";
 import { verifyFirebaseBearer } from "@/lib/auth/verifyFirebaseBearer";
 import { apiError, apiOk } from "@/lib/core/apiResponse";
@@ -17,6 +18,24 @@ type InviteCodeDoc = {
   assignedBuildingIds?: string[];
   createdAt?: unknown;
   expiresAt?: unknown;
+};
+
+type MembershipDoc = {
+  userId: string;
+  organizationId: string;
+  role: "INSPECTOR" | "TENANT" | "ADMIN";
+  status: string;
+  roomId?: string | null;
+  assignedBuildingIds?: string[];
+  pendingInviteCode?: string;
+  createdAt?: unknown;
+};
+
+type StaleInviteMembership = {
+  membershipId: string;
+  userId: string;
+  pendingInviteCode?: string;
+  createdAt?: unknown;
 };
 
 function toDate(value: unknown): Date | null {
@@ -41,6 +60,10 @@ function isInviteExpired(doc: InviteCodeDoc): boolean {
   if (!createdAt) return false;
   const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
   return createdAt.getTime() + THIRTY_DAYS_MS < now;
+}
+
+function isInvitePlaceholderUserId(userId: string): boolean {
+  return userId.startsWith("invite_tenant_") || userId.startsWith("invite_inspector_");
 }
 
 export async function POST(request: Request) {
@@ -95,28 +118,91 @@ export async function POST(request: Request) {
 
     const membershipId = `${actor.uid}-${invite.organizationId}`;
     const now = new Date();
-    await db
-      .collection(COLLECTIONS.memberships)
-      .doc(membershipId)
-      .set(
-        {
-          id: membershipId,
-          userId: actor.uid,
-          organizationId: invite.organizationId,
-          role: invite.role,
-          status: "ACTIVE",
-          roomId: invite.role === "TENANT" ? (invite.roomId ?? null) : null,
-          assignedBuildingIds:
-            invite.role === "INSPECTOR"
-              ? Array.isArray(invite.assignedBuildingIds)
-                ? invite.assignedBuildingIds
-                : []
-              : [],
-          updatedAt: now,
-          createdAt: now,
-        },
-        { merge: true },
-      );
+    const canonicalMembershipRef = db.collection(COLLECTIONS.memberships).doc(membershipId);
+    const [canonicalMembershipSnap, roleMembershipSnap] = await Promise.all([
+      canonicalMembershipRef.get(),
+      db
+        .collection(COLLECTIONS.memberships)
+        .where("organizationId", "==", invite.organizationId)
+        .where("role", "==", invite.role)
+        .get(),
+    ]);
+
+    const normalizedInviteEmail =
+      invite.inviteeEmail?.trim().toLowerCase() ?? (actor.email || "").trim().toLowerCase();
+    const userEmailCache = new Map<string, string>();
+    const staleMemberships: StaleInviteMembership[] = [];
+
+    for (const doc of roleMembershipSnap.docs) {
+      if (doc.id === membershipId) continue;
+
+      const membership = doc.data() as MembershipDoc;
+      let matchesInvite = membership.pendingInviteCode === code;
+
+      if (!matchesInvite && normalizedInviteEmail) {
+        let membershipEmail = userEmailCache.get(membership.userId);
+        if (membershipEmail === undefined) {
+          const userSnap = await db.collection(COLLECTIONS.users).doc(membership.userId).get();
+          membershipEmail = ((userSnap.data() as { email?: string } | undefined)?.email ?? "")
+            .trim()
+            .toLowerCase();
+          userEmailCache.set(membership.userId, membershipEmail);
+        }
+        matchesInvite = membershipEmail === normalizedInviteEmail;
+      }
+
+      if (!matchesInvite) continue;
+
+      staleMemberships.push({
+        membershipId: doc.id,
+        userId: membership.userId,
+        pendingInviteCode: membership.pendingInviteCode,
+        createdAt: membership.createdAt,
+      });
+    }
+
+    const preservedCreatedAt =
+      (canonicalMembershipSnap.data() as MembershipDoc | undefined)?.createdAt ??
+      staleMemberships.find((membership) => membership.createdAt)?.createdAt ??
+      now;
+
+    const batch = db.batch();
+    batch.set(
+      canonicalMembershipRef,
+      {
+        id: membershipId,
+        userId: actor.uid,
+        organizationId: invite.organizationId,
+        role: invite.role,
+        status: "ACTIVE",
+        roomId: invite.role === "TENANT" ? (invite.roomId ?? null) : null,
+        assignedBuildingIds:
+          invite.role === "INSPECTOR"
+            ? Array.isArray(invite.assignedBuildingIds)
+              ? invite.assignedBuildingIds
+              : []
+            : [],
+        pendingInviteCode: FieldValue.delete(),
+        updatedAt: now,
+        createdAt: preservedCreatedAt,
+      },
+      { merge: true },
+    );
+    batch.delete(inviteRef);
+    const deletedInviteCodes = new Set<string>([code]);
+
+    for (const membership of staleMemberships) {
+      if (membership.pendingInviteCode && !deletedInviteCodes.has(membership.pendingInviteCode)) {
+        batch.delete(db.collection(COLLECTIONS.inviteCodes).doc(membership.pendingInviteCode));
+        deletedInviteCodes.add(membership.pendingInviteCode);
+      }
+      batch.delete(db.collection(COLLECTIONS.memberships).doc(membership.membershipId));
+      if (isInvitePlaceholderUserId(membership.userId)) {
+        batch.delete(db.collection(COLLECTIONS.users).doc(membership.userId));
+      }
+    }
+
+    await batch.commit();
 
     return apiOk({
       membershipId,

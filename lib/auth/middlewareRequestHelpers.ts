@@ -6,6 +6,22 @@ export function hasSessionCookie(cookieHeader: string | null): boolean {
   return cookieHeader.includes(`${SESSION_COOKIE_NAME}=`);
 }
 
+/**
+ * Invite links intentionally route through auth pages with `next=/join...` so the
+ * app can reconcile account mismatches before redeeming the invite.
+ */
+export function isInviteAuthReturnPath(
+  pathname: string,
+  nextParam: string | null | undefined,
+): boolean {
+  if (pathname !== "/signup" && pathname !== "/login") {
+    return false;
+  }
+
+  const next = nextParam?.trim();
+  return Boolean(next?.startsWith("/join"));
+}
+
 /** Parse redirect URL from `/api/auth/redirect-path` JSON body. */
 export function extractRedirectTarget(body: unknown): string | null {
   if (

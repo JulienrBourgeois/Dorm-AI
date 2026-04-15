@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractRedirectTarget,
   hasSessionCookie,
+  isInviteAuthReturnPath,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/middlewareRequestHelpers";
 
@@ -39,5 +40,23 @@ describe("extractRedirectTarget", () => {
     expect(extractRedirectTarget(null)).toBeNull();
     expect(extractRedirectTarget({ data: {} })).toBeNull();
     expect(extractRedirectTarget({ redirect: 123 })).toBeNull();
+  });
+});
+
+describe("isInviteAuthReturnPath", () => {
+  it("allows signup pages returning to join", () => {
+    expect(isInviteAuthReturnPath("/signup", "/join?code=ABCD")).toBe(true);
+  });
+
+  it("allows login pages returning to join", () => {
+    expect(isInviteAuthReturnPath("/login", "/join/ABCD?e=user@example.com")).toBe(true);
+  });
+
+  it("rejects non-auth pages", () => {
+    expect(isInviteAuthReturnPath("/home/dashboard", "/join?code=ABCD")).toBe(false);
+  });
+
+  it("rejects auth pages returning elsewhere", () => {
+    expect(isInviteAuthReturnPath("/signup", "/tenant")).toBe(false);
   });
 });
