@@ -140,6 +140,7 @@ export function RoomsCrudClient() {
     const number = createForm.number.trim();
     const floorRaw = createForm.floor.trim();
     const capacityRaw = createForm.capacity.trim();
+    const floor = floorRaw ? Number(floorRaw) : null;
     const capacity = Number(capacityRaw);
     if (!buildingId || !number || !capacityRaw) {
       toast.error("Building, room number, and capacity are required.");
@@ -147,6 +148,10 @@ export function RoomsCrudClient() {
     }
     if (Number.isNaN(capacity) || capacity < 1) {
       toast.error("Capacity must be a positive number.");
+      return;
+    }
+    if (floorRaw && (Number.isNaN(floor) || !Number.isFinite(floor))) {
+      toast.error("Floor must be a valid number.");
       return;
     }
 
@@ -157,7 +162,7 @@ export function RoomsCrudClient() {
         organizationId,
         buildingId,
         number,
-        floor: floorRaw ? Number(floorRaw) : undefined,
+        ...(floor !== null ? { floor } : {}),
         capacity,
         createdAt: now,
         updatedAt: now,
