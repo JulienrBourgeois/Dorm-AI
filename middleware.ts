@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
       }
       const redirectTarget = await resolveRedirectTarget(origin, pathname, cookieHeader);
-      if (redirectTarget) {
+      if (redirectTarget && redirectTarget !== pathname) {
         return NextResponse.redirect(new URL(redirectTarget, origin));
       }
       return NextResponse.next();
@@ -70,7 +70,11 @@ export async function middleware(request: NextRequest) {
     }
 
     const path = await resolveRedirectTarget(origin, pathname, cookieHeader);
-    if (path === "/inspector" || path === "/tenant" || path === "/setup-funnel" || path === "/home/dashboard") {
+    if (
+      path &&
+      path !== pathname &&
+      (path === "/inspector" || path === "/tenant" || path === "/setup-funnel" || path === "/home/dashboard")
+    ) {
       return NextResponse.redirect(new URL(path, origin));
     }
     return NextResponse.next();
@@ -124,7 +128,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const redirectTarget = await resolveRedirectTarget(origin, pathname, cookieHeader);
-  if (redirectTarget) {
+  if (redirectTarget && redirectTarget !== pathname) {
     return NextResponse.redirect(new URL(redirectTarget, origin));
   }
 

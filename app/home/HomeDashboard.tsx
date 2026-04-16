@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth } from "@/app/lib/firebase/app";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
-import { clearSessionCookie } from "@/lib/admin/adminAuth";
+import { clearSessionCookie, ensureSessionCookieForNavigation } from "@/lib/admin/adminAuth";
 import {
   getDocumentData,
   queryCollection,
@@ -135,10 +135,10 @@ export function HomeDashboard() {
         ]);
       }
       setJoinCode("");
-      if (invitedRole === "INSPECTOR") {
-        router.push("/inspector");
-      } else if (invitedRole === "TENANT") {
-        router.push("/tenant");
+      const portalPath = invitedRole === "INSPECTOR" ? "/inspector" : "/tenant";
+      if (invitedRole === "INSPECTOR" || invitedRole === "TENANT") {
+        await ensureSessionCookieForNavigation(user, portalPath);
+        router.push(portalPath);
       }
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : "Something went wrong.");

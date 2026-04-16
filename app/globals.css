@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet/dist/leaflet.css";
 @import "./styles/colors.css";
 @import "./styles/animations/slide-up.css";
 @import "./styles/animations/slide-left.css";

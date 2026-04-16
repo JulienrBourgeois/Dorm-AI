@@ -1,21 +1,17 @@
 "use client";
 
-import type { MouseEvent } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { collection, deleteField, doc, where, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "@/app/lib/firebase/app";
 import { parseBuildingsCsv } from "@/lib/csv/parseBuildingsCsv";
-import { mapPercentToPixelOffset, offsetToMapPercent } from "@/lib/map/propertyMapGeometry";
-import { deleteFile, getDownloadUrl, uploadFile } from "@/app/lib/firebase/storage";
 import {
   COLLECTIONS,
   addDocument,
   dateToTimestamp,
   deleteDocument,
-  getDocumentData,
   queryCollection,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
@@ -32,40 +28,34 @@ import {
   adminSecondaryBtnClass,
   adminTableHeaderRowClass,
 } from "@/components/admin/adminConsolePrimitives";
-import type { Building, Organization, Room, WithId } from "@/types";
+import type { Building, Room, WithId } from "@/types";
 
+type LeafletModule = typeof import("leaflet");
 type BuildingForm = {
   name: string;
   code: string;
   address: string;
-  mapPinX: string;
-  mapPinY: string;
+  latitude: string;
+  longitude: string;
 };
 
 const EMPTY_FORM: BuildingForm = {
   name: "",
   code: "",
   address: "",
-  mapPinX: "",
-  mapPinY: "",
+  latitude: "",
+  longitude: "",
 };
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-function formatMapPin(building: WithId<Building>): string {
-  if (building.mapPinX == null || building.mapPinY == null) return "—";
-  return `${Math.round(building.mapPinX)}%, ${Math.round(building.mapPinY)}%`;
-}
-
-const BUILDINGS_CSV_TEMPLATE = `code,name,address
-BERK,Berkeley Hall,123 Campus Drive
+const BUILDINGS_CSV_TEMPLATE = `code,name,address,latitude,longitude
+BERK,Berkeley Hall,123 Campus Drive,37.8721,-122.2578
 `;
 
 const CSV_IMPORT_BATCH_SIZE = 500;
 const CSV_IMPORT_CONCURRENCY = 3;
 const SUCCESS_CHIP_DISPLAY_LIMIT = 100;
+const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
+const DEFAULT_MAP_ZOOM = 4;
 
 type CsvImportProgress = {
   stage: "reading" | "writing";
@@ -75,6 +65,54 @@ type CsvImportProgress = {
   skippedExisting: number;
   issues: number;
 };
+
+function hasCoordinates(
+  building: WithId<Building> | Building | null | undefined,
+): building is (WithId<Building> | Building) & { latitude: number; longitude: number } {
+  return (
+    !!building &&
+    typeof building.latitude === "number" &&
+    Number.isFinite(building.latitude) &&
+    typeof building.longitude === "number" &&
+    Number.isFinite(building.longitude)
+  );
+}
+
+function formatCoordinates(building: WithId<Building>): string {
+  if (!hasCoordinates(building)) return "Missing location";
+  return `${building.latitude.toFixed(5)}, ${building.longitude.toFixed(5)}`;
+}
+
+function parseCoordinatesPair(
+  latitudeText: string,
+  longitudeText: string,
+): { latitude?: number; longitude?: number; error?: string } {
+  const latRaw = latitudeText.trim();
+  const lngRaw = longitudeText.trim();
+  if (!latRaw && !lngRaw) return {};
+  if (!latRaw || !lngRaw) {
+    return { error: "Provide both latitude and longitude, or leave both empty." };
+  }
+  const lat = Number(latRaw);
+  const lng = Number(lngRaw);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return { error: "Latitude and longitude must be valid numbers." };
+  }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { error: "Latitude must be between -90 and 90; longitude must be between -180 and 180." };
+  }
+  return { latitude: lat, longitude: lng };
+}
+
+function downloadCsvTemplate() {
+  const blob = new Blob([BUILDINGS_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "buildings-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function BuildingsCrudClient() {
   const searchParams = useSearchParams();
@@ -90,32 +128,27 @@ export function BuildingsCrudClient() {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvImportProgress, setCsvImportProgress] = useState<CsvImportProgress | null>(null);
   const [lastImportedBuildings, setLastImportedBuildings] = useState<Array<{ code: string; name: string }>>([]);
-  const csvInputRef = useRef<HTMLInputElement>(null);
-  const mapFileInputRef = useRef<HTMLInputElement>(null);
-  const mapImgRef = useRef<HTMLImageElement>(null);
-  const [propertyMapStoragePath, setPropertyMapStoragePath] = useState<string | null>(null);
-  const [propertyMapUrl, setPropertyMapUrl] = useState<string | null>(null);
-  const [mapUploading, setMapUploading] = useState(false);
-  const [mapLayoutVersion, setMapLayoutVersion] = useState(0);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
-  const [placingPinForBuildingId, setPlacingPinForBuildingId] = useState<string | null>(null);
-  const [pinOverlay, setPinOverlay] = useState<
-    Array<{ id: string; left: number; top: number; code: string; selected: boolean }>
-  >([]);
+  const [placingLocationForBuildingId, setPlacingLocationForBuildingId] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
+  const markerLayerRef = useRef<import("leaflet").LayerGroup | null>(null);
+  const leafletModuleRef = useRef<LeafletModule | null>(null);
+  const placingLocationRef = useRef<string | null>(null);
 
   const refreshData = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     try {
-      const [buildingsSnap, roomsSnap, orgRes] = await Promise.all([
+      const [buildingsSnap, roomsSnap] = await Promise.all([
         queryCollection(COLLECTIONS.buildings, where("organizationId", "==", organizationId)),
         queryCollection(COLLECTIONS.rooms, where("organizationId", "==", organizationId)),
-        getDocumentData<Organization>(COLLECTIONS.organizations, organizationId),
       ]);
 
-      const nextBuildings: Array<WithId<Building>> = buildingsSnap.docs.map((doc) => ({
-        ...(doc.data() as Building),
-        id: doc.id,
+      const nextBuildings: Array<WithId<Building>> = buildingsSnap.docs.map((item) => ({
+        ...(item.data() as Building),
+        id: item.id,
       }));
       nextBuildings.sort((a, b) => a.code.localeCompare(b.code));
       setBuildings(nextBuildings);
@@ -126,20 +159,6 @@ export function BuildingsCrudClient() {
         counts[room.buildingId] = (counts[room.buildingId] ?? 0) + 1;
       }
       setRoomCountByBuilding(counts);
-
-      const mapPath = orgRes.data?.propertyMapStoragePath?.trim() ?? "";
-      setPropertyMapStoragePath(mapPath || null);
-      if (mapPath) {
-        try {
-          const url = await getDownloadUrl(mapPath);
-          setPropertyMapUrl(url);
-        } catch {
-          setPropertyMapUrl(null);
-          toast.error("Could not load property map image (check Storage rules).");
-        }
-      } else {
-        setPropertyMapUrl(null);
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load buildings.");
     } finally {
@@ -151,51 +170,150 @@ export function BuildingsCrudClient() {
     void refreshData();
   }, [refreshData]);
 
-  const bumpMapLayout = useCallback(() => {
-    setMapLayoutVersion((v) => v + 1);
-  }, []);
-
-  useLayoutEffect(() => {
-    const img = mapImgRef.current;
-    if (!img || !propertyMapUrl) {
-      setPinOverlay([]);
-      return;
-    }
-    const list: Array<{ id: string; left: number; top: number; code: string; selected: boolean }> = [];
-    for (const b of buildings) {
-      if (b.mapPinX == null || b.mapPinY == null) continue;
-      const pos = mapPercentToPixelOffset(img, b.mapPinX, b.mapPinY);
-      if (!pos) continue;
-      list.push({
-        id: b.id,
-        left: pos.left,
-        top: pos.top,
-        code: b.code,
-        selected: b.id === selectedBuildingId,
-      });
-    }
-    setPinOverlay(list);
-  }, [buildings, propertyMapUrl, selectedBuildingId, mapLayoutVersion]);
+  useEffect(() => {
+    placingLocationRef.current = placingLocationForBuildingId;
+  }, [placingLocationForBuildingId]);
 
   useEffect(() => {
-    const img = mapImgRef.current;
-    if (!img || !propertyMapUrl) return;
-    const ro = new ResizeObserver(() => bumpMapLayout());
-    ro.observe(img);
-    return () => ro.disconnect();
-  }, [propertyMapUrl, bumpMapLayout]);
+    if (buildings.length === 0) {
+      if (selectedBuildingId) setSelectedBuildingId(null);
+      if (placingLocationForBuildingId) setPlacingLocationForBuildingId(null);
+      return;
+    }
+
+    if (!selectedBuildingId || !buildings.some((building) => building.id === selectedBuildingId)) {
+      setSelectedBuildingId(buildings[0]!.id);
+    }
+
+    if (
+      placingLocationForBuildingId &&
+      !buildings.some((building) => building.id === placingLocationForBuildingId)
+    ) {
+      setPlacingLocationForBuildingId(null);
+    }
+  }, [buildings, placingLocationForBuildingId, selectedBuildingId]);
+
+  const saveLocationFromMap = useCallback(
+    async (buildingId: string, latitude: number, longitude: number) => {
+      setSaving(true);
+      try {
+        await updateDocument(COLLECTIONS.buildings, buildingId, {
+          latitude,
+          longitude,
+          updatedAt: dateToTimestamp(new Date()),
+        });
+        if (editingId === buildingId) {
+          setEditForm((state) => ({
+            ...state,
+            latitude: String(latitude),
+            longitude: String(longitude),
+          }));
+        }
+        setPlacingLocationForBuildingId(null);
+        toast.success("Building location saved.");
+        await refreshData();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save building location.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [editingId, refreshData],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      if (mapRef.current || !mapContainerRef.current) return;
+      const L = await import("leaflet");
+      if (cancelled || !mapContainerRef.current) return;
+      leafletModuleRef.current = L;
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+        scrollWheelZoom: true,
+      }).setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+      markerLayerRef.current = L.layerGroup().addTo(map);
+      map.on("click", (event) => {
+        const targetBuildingId = placingLocationRef.current;
+        if (!targetBuildingId) return;
+        void saveLocationFromMap(targetBuildingId, event.latlng.lat, event.latlng.lng);
+      });
+      mapRef.current = map;
+      setTimeout(() => map.invalidateSize(), 0);
+    };
+    void init();
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+      }
+      mapRef.current = null;
+      markerLayerRef.current = null;
+      leafletModuleRef.current = null;
+    };
+  }, [saveLocationFromMap]);
+
+  useEffect(() => {
+    const L = leafletModuleRef.current;
+    const map = mapRef.current;
+    const layer = markerLayerRef.current;
+    if (!L || !map || !layer) return;
+
+    layer.clearLayers();
+    const markers: Array<import("leaflet").CircleMarker> = [];
+    for (const building of buildings) {
+      if (!hasCoordinates(building)) continue;
+      const selected = building.id === selectedBuildingId;
+      const marker = L.circleMarker([building.latitude, building.longitude], {
+        radius: selected ? 9 : 7,
+        color: selected ? "#0EA5E9" : "#111827",
+        weight: 2,
+        fillOpacity: 0.85,
+      });
+      marker.bindTooltip(building.code, { direction: "top" });
+      marker.on("click", () => setSelectedBuildingId(building.id));
+      marker.addTo(layer);
+      markers.push(marker);
+    }
+
+    const selected = buildings.find((building) => building.id === selectedBuildingId);
+    if (hasCoordinates(selected)) {
+      map.setView([selected.latitude, selected.longitude], Math.max(map.getZoom(), 16));
+      return;
+    }
+    if (markers.length === 0) {
+      map.setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+      return;
+    }
+    const bounds = L.latLngBounds(markers.map((marker) => marker.getLatLng()));
+    map.fitBounds(bounds.pad(0.25), { maxZoom: 16 });
+  }, [buildings, selectedBuildingId]);
 
   const filteredBuildings = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return buildings;
-    return buildings.filter((b) => {
-      const hay = `${b.code} ${b.name} ${b.address ?? ""}`.toLowerCase();
-      return hay.includes(term);
+    return buildings.filter((building) => {
+      const haystack =
+        `${building.code} ${building.name} ${building.address ?? ""} ${building.latitude ?? ""} ${building.longitude ?? ""}`.toLowerCase();
+      return haystack.includes(term);
     });
   }, [buildings, search]);
 
   const existingBuildingCodes = useMemo(
-    () => new Set(buildings.map((b) => b.code.trim().toUpperCase())),
+    () => new Set(buildings.map((building) => building.code.trim().toUpperCase())),
+    [buildings],
+  );
+
+  const selectedBuilding = useMemo(
+    () => buildings.find((building) => building.id === selectedBuildingId) ?? null,
+    [buildings, selectedBuildingId],
+  );
+
+  const mappedBuildingsCount = useMemo(
+    () => buildings.filter((building) => hasCoordinates(building)).length,
     [buildings],
   );
 
@@ -212,8 +330,13 @@ export function BuildingsCrudClient() {
     const name = createForm.name.trim();
     const code = createForm.code.trim().toUpperCase();
     const address = createForm.address.trim();
+    const coordinates = parseCoordinatesPair(createForm.latitude, createForm.longitude);
     if (!name || !code) {
       toast.error("Building name and code are required.");
+      return;
+    }
+    if (coordinates.error) {
+      toast.error(coordinates.error);
       return;
     }
     if (hasDuplicateBuildingCode(code)) {
@@ -229,11 +352,11 @@ export function BuildingsCrudClient() {
         name,
         code,
         address,
+        ...(coordinates.latitude != null && coordinates.longitude != null
+          ? { latitude: coordinates.latitude, longitude: coordinates.longitude }
+          : {}),
         createdAt: now,
         updatedAt: now,
-      } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
-        createdAt: ReturnType<typeof dateToTimestamp>;
-        updatedAt: ReturnType<typeof dateToTimestamp>;
       });
       setCreateForm(EMPTY_FORM);
       toast.success("Building created.");
@@ -252,10 +375,10 @@ export function BuildingsCrudClient() {
       name: building.name,
       code: building.code,
       address: building.address ?? "",
-      mapPinX:
-        building.mapPinX != null && !Number.isNaN(building.mapPinX) ? String(building.mapPinX) : "",
-      mapPinY:
-        building.mapPinY != null && !Number.isNaN(building.mapPinY) ? String(building.mapPinY) : "",
+      latitude:
+        building.latitude != null && !Number.isNaN(building.latitude) ? String(building.latitude) : "",
+      longitude:
+        building.longitude != null && !Number.isNaN(building.longitude) ? String(building.longitude) : "",
     });
   }
 
@@ -264,32 +387,17 @@ export function BuildingsCrudClient() {
     const name = editForm.name.trim();
     const code = editForm.code.trim().toUpperCase();
     const address = editForm.address.trim();
+    const coordinates = parseCoordinatesPair(editForm.latitude, editForm.longitude);
     if (!name || !code) {
       toast.error("Building name and code are required.");
       return;
     }
-    if (hasDuplicateBuildingCode(code, editingId)) {
-      toast.error(`A building with code "${code}" already exists.`);
+    if (coordinates.error) {
+      toast.error(coordinates.error);
       return;
     }
-
-    const pinXStr = editForm.mapPinX.trim();
-    const pinYStr = editForm.mapPinY.trim();
-    const pinPatch: Record<string, unknown> = {};
-    if (pinXStr === "" && pinYStr === "") {
-      pinPatch.mapPinX = deleteField();
-      pinPatch.mapPinY = deleteField();
-    } else if (pinXStr !== "" && pinYStr !== "") {
-      const px = Number(pinXStr);
-      const py = Number(pinYStr);
-      if (Number.isNaN(px) || Number.isNaN(py) || px < 0 || px > 100 || py < 0 || py > 100) {
-        toast.error("Map pin X and Y must be numbers from 0 to 100.");
-        return;
-      }
-      pinPatch.mapPinX = px;
-      pinPatch.mapPinY = py;
-    } else {
-      toast.error("Set both map pin X and Y, or leave both empty.");
+    if (hasDuplicateBuildingCode(code, editingId)) {
+      toast.error(`A building with code "${code}" already exists.`);
       return;
     }
 
@@ -299,7 +407,9 @@ export function BuildingsCrudClient() {
         name,
         code,
         address,
-        ...pinPatch,
+        ...(coordinates.latitude != null && coordinates.longitude != null
+          ? { latitude: coordinates.latitude, longitude: coordinates.longitude }
+          : { latitude: deleteField(), longitude: deleteField() }),
         updatedAt: dateToTimestamp(new Date()),
       });
       toast.success("Building updated.");
@@ -327,102 +437,26 @@ export function BuildingsCrudClient() {
     }
   }
 
-  async function handlePropertyMapFile(file: File) {
-    if (!organizationId) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file (PNG, JPG, WebP, etc.).");
-      return;
-    }
-    setMapUploading(true);
-    const path = `organizations/${organizationId}/property-map/${Date.now()}_${sanitizeFileName(file.name)}`;
-    try {
-      await uploadFile(path, file, { contentType: file.type });
-      const prevPath = propertyMapStoragePath;
-      await updateDocument(COLLECTIONS.organizations, organizationId, {
-        propertyMapStoragePath: path,
-        updatedAt: dateToTimestamp(new Date()),
-      });
-      if (prevPath && prevPath !== path) {
-        try {
-          await deleteFile(prevPath);
-        } catch {
-          /* ignore stale file cleanup failures */
-        }
-      }
-      const url = await getDownloadUrl(path);
-      setPropertyMapStoragePath(path);
-      setPropertyMapUrl(url);
-      toast.success("Property map uploaded.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to upload map.");
-    } finally {
-      setMapUploading(false);
-      if (mapFileInputRef.current) mapFileInputRef.current.value = "";
-    }
-  }
-
-  async function handleRemovePropertyMap() {
-    if (!organizationId || !propertyMapStoragePath) return;
-    if (!confirm("Remove the property map from this organization?")) return;
-    setMapUploading(true);
-    try {
-      await updateDocument(COLLECTIONS.organizations, organizationId, {
-        propertyMapStoragePath: deleteField(),
-        updatedAt: dateToTimestamp(new Date()),
-      });
-      try {
-        await deleteFile(propertyMapStoragePath);
-      } catch {
-        /* ignore */
-      }
-      setPropertyMapStoragePath(null);
-      setPropertyMapUrl(null);
-      setPlacingPinForBuildingId(null);
-      toast.success("Property map removed.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove map.");
-    } finally {
-      setMapUploading(false);
-    }
-  }
-
-  async function handleMapImageClick(e: MouseEvent<HTMLImageElement>) {
-    if (!placingPinForBuildingId || !organizationId) return;
-    const img = mapImgRef.current;
-    if (!img) return;
-    const rect = img.getBoundingClientRect();
-    const ox = e.clientX - rect.left;
-    const oy = e.clientY - rect.top;
-    const pct = offsetToMapPercent(img, ox, oy);
-    if (!pct) {
-      toast.error("Click inside the visible map area.");
-      return;
-    }
+  async function handleClearLocation(buildingId: string) {
+    if (!confirm("Clear the saved coordinates for this building?")) return;
     setSaving(true);
     try {
-      await updateDocument(COLLECTIONS.buildings, placingPinForBuildingId, {
-        mapPinX: pct.x,
-        mapPinY: pct.y,
+      await updateDocument(COLLECTIONS.buildings, buildingId, {
+        latitude: deleteField(),
+        longitude: deleteField(),
         updatedAt: dateToTimestamp(new Date()),
       });
-      setPlacingPinForBuildingId(null);
-      toast.success("Map pin saved.");
+      if (editingId === buildingId) {
+        setEditForm((state) => ({ ...state, latitude: "", longitude: "" }));
+      }
+      setPlacingLocationForBuildingId(null);
+      toast.success("Building location cleared.");
       await refreshData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save pin.");
+      toast.error(err instanceof Error ? err.message : "Failed to clear building location.");
     } finally {
       setSaving(false);
     }
-  }
-
-  function downloadCsvTemplate() {
-    const blob = new Blob([BUILDINGS_CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "buildings-template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   async function handleCsvFileSelected(file: File) {
@@ -453,9 +487,9 @@ export function BuildingsCrudClient() {
     }
 
     const seenCodes = new Set(existingBuildingCodes);
-    const toCreate = rows.filter((r) => {
-      if (seenCodes.has(r.code)) return false;
-      seenCodes.add(r.code);
+    const toCreate = rows.filter((row) => {
+      if (seenCodes.has(row.code)) return false;
+      seenCodes.add(row.code);
       return true;
     });
     const skippedExisting = rows.length - toCreate.length;
@@ -490,10 +524,10 @@ export function BuildingsCrudClient() {
       await Promise.all(
         Array.from({ length: workerCount }, async () => {
           while (true) {
-            const chunkIdx = nextChunk;
+            const chunkIndex = nextChunk;
             nextChunk += 1;
-            if (chunkIdx >= chunks.length) return;
-            const chunk = chunks[chunkIdx];
+            if (chunkIndex >= chunks.length) return;
+            const chunk = chunks[chunkIndex];
             const batch = writeBatch(db);
             for (const row of chunk) {
               const ref = doc(buildingsCollection);
@@ -502,11 +536,11 @@ export function BuildingsCrudClient() {
                 name: row.name,
                 code: row.code,
                 address: row.address,
+                ...(row.latitude != null && row.longitude != null
+                  ? { latitude: row.latitude, longitude: row.longitude }
+                  : {}),
                 createdAt: now,
                 updatedAt: now,
-              } satisfies Omit<Building, "createdAt" | "updatedAt"> & {
-                createdAt: ReturnType<typeof dateToTimestamp>;
-                updatedAt: ReturnType<typeof dateToTimestamp>;
               });
             }
             await batch.commit();
@@ -534,7 +568,7 @@ export function BuildingsCrudClient() {
       if (issues.length > 0) {
         const preview = issues
           .slice(0, 5)
-          .map((i) => `Line ${i.line}: ${i.message}`)
+          .map((issue) => `Line ${issue.line}: ${issue.message}`)
           .join("\n");
         toast.message(preview + (issues.length > 5 ? "\n…" : ""), { duration: 8000 });
       }
@@ -567,108 +601,91 @@ export function BuildingsCrudClient() {
         <div>
           <h1 className={adminPageTitleClass}>Buildings</h1>
           <p className={adminPageDescClass}>
-            Organization-scoped building inventory with live create, edit, and delete actions.
+            Organization-scoped building inventory with latitude/longitude map placement.
           </p>
         </div>
       </div>
 
       <div className={`${adminCardClass} mb-6`}>
-        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Property map</p>
+        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Building map</p>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Upload one site map for this organization. Select a building in the table to highlight its pin; use
-          &quot;Place pin&quot; then click the map to set coordinates.
+          Leaflet + OpenStreetMap is built in. Select a building and click &quot;Place location&quot;, then click the
+          map. Buildings without coordinates remain visible below as missing location until you assign them.
         </p>
-        {placingPinForBuildingId && (
+        {placingLocationForBuildingId ? (
           <p className="mt-2 rounded-md bg-accent/15 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-100">
-            Click on the map image to place the pin for{" "}
+            Click on the map to set coordinates for{" "}
             <span className="font-semibold">
-              {buildings.find((b) => b.id === placingPinForBuildingId)?.code ?? "this building"}
+              {buildings.find((building) => building.id === placingLocationForBuildingId)?.code ?? "this building"}
             </span>
             .{" "}
             <button
               type="button"
               className="underline"
-              onClick={() => setPlacingPinForBuildingId(null)}
+              onClick={() => setPlacingLocationForBuildingId(null)}
             >
               Cancel
             </button>
           </p>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input
-            ref={mapFileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handlePropertyMapFile(f);
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => mapFileInputRef.current?.click()}
-            disabled={mapUploading || saving}
-            className={adminPrimaryBtnCompactClass}
-          >
-            {mapUploading ? "Uploading…" : propertyMapUrl ? "Replace map image" : "Upload map image"}
-          </button>
-          {propertyMapUrl && (
-            <button
-              type="button"
-              onClick={() => void handleRemovePropertyMap()}
-              disabled={mapUploading}
-              className={adminSecondaryBtnClass}
-            >
-              Remove map
-            </button>
-          )}
-        </div>
-        <div className="mt-4">
-          {propertyMapUrl ? (
-            <div className="relative inline-block max-w-full rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/40">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                ref={mapImgRef}
-                src={propertyMapUrl}
-                alt="Property map"
-                className={`block max-h-[min(420px,70vh)] max-w-full object-contain ${
-                  placingPinForBuildingId ? "cursor-crosshair" : "cursor-default"
-                }`}
-                onLoad={bumpMapLayout}
-                onClick={(e) => void handleMapImageClick(e)}
-              />
-              <div className="pointer-events-none absolute inset-0">
-                {pinOverlay.map((pin) => (
-                  <div
-                    key={pin.id}
-                    className="absolute flex -translate-x-1/2 -translate-y-full flex-col items-center"
-                    style={{ left: pin.left, top: pin.top }}
+        ) : null}
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <div ref={mapContainerRef} className="h-[380px] w-full bg-zinc-100 dark:bg-zinc-900/40" />
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Selected building
+            </p>
+            {selectedBuilding ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {selectedBuilding.code} - {selectedBuilding.name}
+                </p>
+                <p
+                  className={`mt-3 text-sm font-medium ${
+                    hasCoordinates(selectedBuilding)
+                      ? "text-emerald-700 dark:text-emerald-300"
+                      : "text-amber-700 dark:text-amber-300"
+                  }`}
+                >
+                  {hasCoordinates(selectedBuilding) ? "Coordinates saved" : "Missing location"}
+                </p>
+                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                  {formatCoordinates(selectedBuilding)}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPlacingLocationForBuildingId(selectedBuilding.id)}
+                    disabled={saving}
+                    className={adminPrimaryBtnCompactClass}
                   >
-                    <span
-                      className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold shadow ${
-                        pin.selected
-                          ? "bg-accent text-white ring-2 ring-white dark:ring-zinc-900"
-                          : "bg-zinc-900/85 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                      }`}
-                    >
-                      {pin.code}
-                    </span>
-                    <span
-                      className={`mt-0.5 h-2 w-2 rotate-45 ${
-                        pin.selected ? "bg-accent" : "bg-zinc-900 dark:bg-zinc-100"
-                      }`}
-                      aria-hidden
-                    />
-                  </div>
-                ))}
-              </div>
+                    Place location
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleClearLocation(selectedBuilding.id)}
+                    disabled={!hasCoordinates(selectedBuilding) || saving}
+                    className={adminSecondaryBtnClass}
+                  >
+                    Clear location
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                Create or select a building to manage its location.
+              </p>
+            )}
+            <div className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Coverage
+              </p>
+              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+                {mappedBuildingsCount} mapped, {buildings.length - mappedBuildingsCount} missing location
+              </p>
             </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400">
-              No map yet. Upload an image of your property to place building pins.
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -676,15 +693,11 @@ export function BuildingsCrudClient() {
         <div className="mb-4 border-b border-zinc-200 pb-3 dark:border-zinc-800">
           <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Bulk CSV import</p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            First row: <span className="font-mono">code,name,address</span> (address optional). Codes are uppercased;
-            quotes supported for commas in fields.
+            First row: <span className="font-mono">code,name,address,latitude,longitude</span>. Address and
+            coordinates are optional, but latitude and longitude must be provided together when used.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={downloadCsvTemplate}
-              className={adminSecondaryBtnClass}
-            >
+            <button type="button" onClick={downloadCsvTemplate} className={adminSecondaryBtnClass}>
               Download template
             </button>
             <input
@@ -693,8 +706,8 @@ export function BuildingsCrudClient() {
               accept=".csv,text/csv"
               className="hidden"
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleCsvFileSelected(f);
+                const file = e.target.files?.[0];
+                if (file) void handleCsvFileSelected(file);
               }}
             />
             <button
@@ -734,9 +747,7 @@ export function BuildingsCrudClient() {
                         : `${Math.max(
                             6,
                             Math.round(
-                              (csvImportProgress.completed /
-                                Math.max(csvImportProgress.total, 1)) *
-                                100,
+                              (csvImportProgress.completed / Math.max(csvImportProgress.total, 1)) * 100,
                             ),
                           )}%`,
                   }}
@@ -753,23 +764,36 @@ export function BuildingsCrudClient() {
             </div>
           ) : null}
         </div>
-        <div className="grid gap-3 md:grid-cols-4">
+
+        <div className="grid gap-3 md:grid-cols-6">
           <input
             value={createForm.name}
-            onChange={(e) => setCreateForm((s) => ({ ...s, name: e.target.value }))}
+            onChange={(e) => setCreateForm((state) => ({ ...state, name: e.target.value }))}
             placeholder="Building name"
             className={adminInputClass}
           />
           <input
             value={createForm.code}
-            onChange={(e) => setCreateForm((s) => ({ ...s, code: e.target.value.toUpperCase() }))}
+            onChange={(e) => setCreateForm((state) => ({ ...state, code: e.target.value.toUpperCase() }))}
             placeholder="Code (e.g. BERK)"
             className={adminInputClass}
           />
           <input
             value={createForm.address}
-            onChange={(e) => setCreateForm((s) => ({ ...s, address: e.target.value }))}
+            onChange={(e) => setCreateForm((state) => ({ ...state, address: e.target.value }))}
             placeholder="Address (optional)"
+            className={adminInputClass}
+          />
+          <input
+            value={createForm.latitude}
+            onChange={(e) => setCreateForm((state) => ({ ...state, latitude: e.target.value }))}
+            placeholder="Latitude"
+            className={adminInputClass}
+          />
+          <input
+            value={createForm.longitude}
+            onChange={(e) => setCreateForm((state) => ({ ...state, longitude: e.target.value }))}
+            placeholder="Longitude"
             className={adminInputClass}
           />
           <button
@@ -794,12 +818,12 @@ export function BuildingsCrudClient() {
             </p>
             <div className="mt-2 max-h-32 overflow-y-auto">
               <div className="flex flex-wrap gap-2">
-                {lastImportedBuildings.slice(0, SUCCESS_CHIP_DISPLAY_LIMIT).map((b) => (
+                {lastImportedBuildings.slice(0, SUCCESS_CHIP_DISPLAY_LIMIT).map((building) => (
                   <span
-                    key={`${b.code}-${b.name}`}
+                    key={`${building.code}-${building.name}`}
                     className="rounded-full border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                   >
-                    {b.code} - {b.name}
+                    {building.code} - {building.name}
                   </span>
                 ))}
                 {lastImportedBuildings.length > SUCCESS_CHIP_DISPLAY_LIMIT ? (
@@ -811,35 +835,36 @@ export function BuildingsCrudClient() {
             </div>
           </div>
         ) : null}
+
         <div className="p-4 sm:p-5">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by code, name, or address…"
+            placeholder="Search by code, name, address, or coordinates…"
             className={adminInputClass}
           />
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full border-collapse text-sm">
+          <table className="min-w-[1160px] w-full border-collapse text-sm">
             <thead>
               <tr className={adminTableHeaderRowClass}>
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Address</th>
                 <th className="px-4 py-3">Rooms</th>
-                <th className="px-4 py-3">Map pin</th>
+                <th className="px-4 py-3">Coordinates</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredBuildings.map((building) => {
                 const isEditing = editingId === building.id;
-                const rowSelected = selectedBuildingId === building.id;
+                const isSelected = selectedBuildingId === building.id;
                 return (
                   <tr
                     key={building.id}
                     className={`border-b border-zinc-100 dark:border-zinc-800 ${
-                      !isEditing && rowSelected ? "bg-accent/10 dark:bg-accent/15" : ""
+                      !isEditing && isSelected ? "bg-accent/10 dark:bg-accent/15" : ""
                     } ${!isEditing ? "cursor-pointer" : ""}`}
                     onClick={() => {
                       if (!isEditing) setSelectedBuildingId(building.id);
@@ -849,7 +874,9 @@ export function BuildingsCrudClient() {
                       {isEditing ? (
                         <input
                           value={editForm.code}
-                          onChange={(e) => setEditForm((s) => ({ ...s, code: e.target.value.toUpperCase() }))}
+                          onChange={(e) =>
+                            setEditForm((state) => ({ ...state, code: e.target.value.toUpperCase() }))
+                          }
                           className={`${adminInputTableClass} w-28`}
                         />
                       ) : (
@@ -860,7 +887,7 @@ export function BuildingsCrudClient() {
                       {isEditing ? (
                         <input
                           value={editForm.name}
-                          onChange={(e) => setEditForm((s) => ({ ...s, name: e.target.value }))}
+                          onChange={(e) => setEditForm((state) => ({ ...state, name: e.target.value }))}
                           className={`${adminInputTableClass} w-full min-w-[8rem]`}
                         />
                       ) : (
@@ -871,36 +898,39 @@ export function BuildingsCrudClient() {
                       {isEditing ? (
                         <input
                           value={editForm.address}
-                          onChange={(e) => setEditForm((s) => ({ ...s, address: e.target.value }))}
+                          onChange={(e) => setEditForm((state) => ({ ...state, address: e.target.value }))}
                           className={`${adminInputTableClass} w-full min-w-[8rem]`}
                         />
                       ) : (
                         building.address || "—"
                       )}
                     </td>
-                    <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">{roomCountByBuilding[building.id] ?? 0}</td>
+                    <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">
+                      {roomCountByBuilding[building.id] ?? 0}
+                    </td>
                     <td className="px-4 py-4 text-zinc-700 dark:text-zinc-200">
                       {isEditing ? (
                         <div className="flex flex-wrap items-center gap-1">
                           <input
-                            value={editForm.mapPinX}
-                            onChange={(e) => setEditForm((s) => ({ ...s, mapPinX: e.target.value }))}
-                            placeholder="X"
-                            title="Map pin X % (0–100)"
-                            className={`${adminInputTableClass} w-14`}
+                            value={editForm.latitude}
+                            onChange={(e) => setEditForm((state) => ({ ...state, latitude: e.target.value }))}
+                            placeholder="Lat"
+                            className={`${adminInputTableClass} w-28`}
                           />
                           <span className="text-zinc-400">,</span>
                           <input
-                            value={editForm.mapPinY}
-                            onChange={(e) => setEditForm((s) => ({ ...s, mapPinY: e.target.value }))}
-                            placeholder="Y"
-                            title="Map pin Y % (0–100)"
-                            className={`${adminInputTableClass} w-14`}
+                            value={editForm.longitude}
+                            onChange={(e) => setEditForm((state) => ({ ...state, longitude: e.target.value }))}
+                            placeholder="Lng"
+                            className={`${adminInputTableClass} w-28`}
                           />
-                          <span className="text-xs text-zinc-400">%</span>
                         </div>
+                      ) : hasCoordinates(building) ? (
+                        formatCoordinates(building)
                       ) : (
-                        formatMapPin(building)
+                        <span className="font-medium text-amber-700 dark:text-amber-300">
+                          Missing location
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -947,13 +977,23 @@ export function BuildingsCrudClient() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedBuildingId(building.id);
-                                setPlacingPinForBuildingId(building.id);
+                                setPlacingLocationForBuildingId(building.id);
                               }}
-                              disabled={!propertyMapUrl || saving}
-                              title={!propertyMapUrl ? "Upload a property map first" : undefined}
+                              disabled={saving}
                               className={adminSecondaryBtnClass}
                             >
-                              Place pin
+                              Place location
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleClearLocation(building.id);
+                              }}
+                              disabled={!hasCoordinates(building) || saving}
+                              className={adminSecondaryBtnClass}
+                            >
+                              Clear location
                             </button>
                             <button
                               type="button"
@@ -980,13 +1020,13 @@ export function BuildingsCrudClient() {
                   </tr>
                 );
               })}
-              {!loading && filteredBuildings.length === 0 && (
+              {!loading && filteredBuildings.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     No buildings found for this organization.
                   </td>
                 </tr>
-              )}
+              ) : null}
             </tbody>
           </table>
         </div>

@@ -1,5 +1,5 @@
 import { getAppHostname, getAppOrigin, getResendFrom } from "@/lib/email/config";
-import { escapeHtml, htmlAttrHref } from "@/lib/email/escapeHtml";
+import { plainTextToEmailHtml } from "@/lib/email/plainEmailHtml";
 import { getResend } from "@/lib/email/resendClient";
 
 function oneLine(s: string, max = 200): string {
@@ -24,38 +24,33 @@ export async function sendOrganizationCreatedEmail(opts: {
     "there";
   const first = oneLine(rawFirst, 80);
   const orgName = oneLine(opts.organizationName, 200);
-  const origin = getAppOrigin();
   const host = getAppHostname();
+  const origin = getAppOrigin();
   const workspaceUrl = `${origin}/admin/dashboard?organizationId=${encodeURIComponent(opts.organizationId)}`;
 
   const text = [
     `Hi ${first},`,
     "",
-    `Your workspace “${orgName}” is ready. When you sign in, you can add buildings, rooms, and people, and schedule inspections from there.`,
+    "Your organization workspace on Inspect AI is ready.",
     "",
-    "Open it here:",
+    `Organization: ${orgName}`,
+    "",
+    "Open your admin dashboard by copying this address into your browser:",
+    "",
     workspaceUrl,
     "",
-    `You can always reach the app at ${host}.`,
+    `Or sign in at ${host}, then choose this organization from the menu.`,
     "",
-    "— Inspect AI",
+    "—",
+    "Inspect AI",
   ].join("\n");
-
-  const html = [
-    `<p>Hi ${escapeHtml(first)},</p>`,
-    `<p>Your workspace <strong>${escapeHtml(orgName)}</strong> is ready. After you sign in, you can add buildings and rooms, invite people, and schedule inspections.</p>`,
-    `<p><a href="${htmlAttrHref(workspaceUrl)}">Open your workspace</a></p>`,
-    `<p style="font-size:13px;color:#555">If the link doesn’t open, copy this into your browser:<br>${escapeHtml(workspaceUrl)}</p>`,
-    `<p style="font-size:13px;color:#555">You can also go to ${escapeHtml(host)} and choose this organization from the menu.</p>`,
-    '<p style="font-size:13px;color:#555">— Inspect AI</p>',
-  ].join("");
 
   const { error } = await resend.emails.send({
     from: getResendFrom(),
     to: opts.to,
-    subject: `${orgName} is ready`,
+    subject: `[Inspect AI] ${orgName} — workspace ready`,
     text,
-    html,
+    html: plainTextToEmailHtml(text),
   });
 
   if (error) {

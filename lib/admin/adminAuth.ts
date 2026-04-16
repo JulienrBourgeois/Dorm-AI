@@ -86,6 +86,34 @@ export async function setSessionCookie(token: string): Promise<void> {
   }
 }
 
+/** Routes where middleware requires `__session` before client navigation (see `middleware.ts`). */
+export function pathRequiresMiddlewareSessionCookie(href: string): boolean {
+  const p = href.split("?")[0] ?? "";
+  return (
+    p.startsWith("/inspector") ||
+    p.startsWith("/tenant") ||
+    p.startsWith("/admin")
+  );
+}
+
+/**
+ * Sets the session cookie from the current user. Call before `router.push` to inspector/tenant/admin
+ * so middleware does not redirect to login while SessionCookieSync is still in flight.
+ */
+export async function syncSessionCookieFromUser(user: User): Promise<void> {
+  const token = await user.getIdToken();
+  await setSessionCookie(token);
+}
+
+export async function ensureSessionCookieForNavigation(
+  user: User,
+  href: string,
+): Promise<void> {
+  if (pathRequiresMiddlewareSessionCookie(href)) {
+    await syncSessionCookieFromUser(user);
+  }
+}
+
 /**
  * Clears the server-managed `__session` cookie.
  */

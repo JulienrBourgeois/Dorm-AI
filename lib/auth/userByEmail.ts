@@ -1,6 +1,6 @@
 /**
- * Check if a user document exists in the users collection with the given email.
- * Calls a server API route (admin Firestore) so unauthenticated users can use forgot-password.
+ * Check if a Firebase Auth user exists for the given email (via `/api/auth/check-email`).
+ * Invite placeholders in Firestore do not count as existing accounts.
  */
 export async function isUserExistsByEmail(email: string): Promise<boolean> {
   const trimmed = email.trim();

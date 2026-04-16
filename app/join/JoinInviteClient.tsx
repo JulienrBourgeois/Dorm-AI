@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOutUser, subscribeToAuthState } from "@/app/lib/firebase/auth";
-import { clearSessionCookie } from "@/lib/admin/adminAuth";
+import { clearSessionCookie, ensureSessionCookieForNavigation } from "@/lib/admin/adminAuth";
 import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
 import { buildInviteAuthReturnUrl, decideInviteEntry } from "@/lib/auth/inviteDeepLinkAuth";
+import { resolveAuthUser } from "@/lib/auth/resolveAuthUser";
 
 export function JoinInviteClient() {
   const router = useRouter();
@@ -33,7 +34,8 @@ export function JoinInviteClient() {
       return;
     }
 
-    const unsubscribe = subscribeToAuthState(async (user) => {
+    const unsubscribe = subscribeToAuthState(async (callbackUser) => {
+      const user = await resolveAuthUser(callbackUser);
       const waitForSignedOut = async (timeoutMs = 3000) => {
         await new Promise<void>((resolve) => {
           let settled = false;
@@ -148,7 +150,9 @@ export function JoinInviteClient() {
 
         const role = "data" in payload ? payload.data?.role : undefined;
         setMessage("You’re in. Redirecting…");
-        router.replace(role === "INSPECTOR" ? "/inspector" : "/tenant");
+        const portalPath = role === "INSPECTOR" ? "/inspector" : "/tenant";
+        await ensureSessionCookieForNavigation(user, portalPath);
+        router.replace(portalPath);
       } catch (err) {
         attemptRef.current = false;
         setFailed(true);

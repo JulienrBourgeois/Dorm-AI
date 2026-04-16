@@ -14,6 +14,7 @@ import { AccountDrawer } from "@/components/account/AccountDrawer";
 import { Loader } from "@/components/Loader";
 import { auth } from "@/app/lib/firebase/app";
 import { subscribeToAuthState } from "@/app/lib/firebase/auth/state";
+import { resolveAuthUser } from "@/lib/auth/resolveAuthUser";
 import { signOutUser } from "@/app/lib/firebase/auth";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
 import {
@@ -45,7 +46,8 @@ export function SetupFunnel() {
   const [phone, setPhone] = useState("");
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthState(async (user) => {
+    const unsubscribe = subscribeToAuthState(async (callbackUser) => {
+      const user = await resolveAuthUser(callbackUser);
       if (!user) {
         router.replace("/signup");
         return;

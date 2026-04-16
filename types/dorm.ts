@@ -97,10 +97,10 @@ export interface Building {
   name: string;
   code: string;
   address?: string;
-  /** Horizontal position on the property map image, 0–100 (% of visible image width). */
-  mapPinX?: number;
-  /** Vertical position on the property map image, 0–100 (% of visible image height). */
-  mapPinY?: number;
+  /** Latitude in decimal degrees. */
+  latitude?: number;
+  /** Longitude in decimal degrees. */
+  longitude?: number;
   createdAt: Date;
   updatedAt: Date;
 }

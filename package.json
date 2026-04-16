@@ -15,8 +15,10 @@
     "test": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.21",
     "firebase": "^12.10.0",
     "firebase-admin": "^13.0.0",
+    "leaflet": "^1.9.4",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",

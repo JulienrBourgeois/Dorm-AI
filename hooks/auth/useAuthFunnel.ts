@@ -12,6 +12,7 @@ import {
 } from "@/app/lib/firebase/auth";
 import { isUserExistsByEmail } from "@/lib/auth/userByEmail";
 import { getRedirectPathForUser } from "@/lib/auth/redirectPath";
+import { ensureSessionCookieForNavigation } from "@/lib/admin/adminAuth";
 import { triggerWelcomeEmail } from "@/lib/email/triggerFromClient";
 import { getAuthErrorMessage } from "@/lib/auth/authErrors";
 import type { AuthStep, AuthFunnelState, AuthFunnelActions } from "@/types/auth/authFunnel";
@@ -80,7 +81,9 @@ export function useAuthFunnel(): AuthFunnelState & AuthFunnelActions {
         if (isNewUser) {
           void triggerWelcomeEmail(user).catch(() => {});
         }
-        router.push(redirectTo ?? path);
+        const dest = redirectTo ?? path;
+        await ensureSessionCookieForNavigation(user, dest);
+        router.push(dest);
       } catch (err) {
         toast.error(getAuthErrorMessage(err));
       }

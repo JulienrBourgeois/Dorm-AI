@@ -19,8 +19,8 @@ import {
 } from "@/components/admin/adminConsolePrimitives";
 import type { Building, Room, WithId } from "@/types";
 
-const BUILDINGS_CSV_TEMPLATE = `code,name,address
-BERK,Berkeley Hall,123 Campus Drive
+const BUILDINGS_CSV_TEMPLATE = `code,name,address,latitude,longitude
+BERK,Berkeley Hall,123 Campus Drive,37.8721,-122.2578
 `;
 
 const TENANT_CSV_TEMPLATE = `name,email,room
@@ -157,6 +157,12 @@ export function AdminBulkUploadAllModal({
                   name: row.name,
                   code: row.code,
                   address: row.address,
+                  ...(row.latitude != null && row.longitude != null
+                    ? {
+                        latitude: row.latitude,
+                        longitude: row.longitude,
+                      }
+                    : {}),
                   createdAt: now,
                   updatedAt: now,
                 });
@@ -312,7 +318,7 @@ export function AdminBulkUploadAllModal({
                   <div>
                     <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Buildings (create)</h3>
                     <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      CSV columns: <span className="font-mono">code,name,address</span> (address optional).
+                      CSV columns: <span className="font-mono">code,name,address,latitude,longitude</span> (address and coordinates optional).
                     </p>
                   </div>
                   <button
