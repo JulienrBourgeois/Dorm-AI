@@ -6,6 +6,7 @@ import { BackLink } from "@/components/auth/ui";
 import type { Organization } from "@/types/dorm";
 import { Loader } from "@/components/Loader";
 import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
+import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
 
 export function ManagerOrganizationDashboard({
   organizationId: id,
@@ -35,6 +36,15 @@ export function ManagerOrganizationDashboard({
           />
         </div>
       </header>
+      <div className="border-b border-zinc-200 bg-white px-6 pb-6 dark:border-zinc-800 dark:bg-black lg:px-10">
+        <div className="mx-auto max-w-5xl overflow-hidden rounded-xl">
+          <OrganizationThumbnail
+            name={organization.name}
+            thumbnailStoragePath={organization.thumbnailStoragePath}
+            variant="banner"
+          />
+        </div>
+      </div>
       <main className="mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {organization.name}

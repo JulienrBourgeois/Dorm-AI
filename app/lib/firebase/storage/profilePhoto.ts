@@ -8,6 +8,7 @@ const PROFILE_PHOTO_ALLOWED_TYPES = new Set([
 
 const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Safe segment for Storage object names (shared with org thumbnails). */
 export function sanitizeFileName(name: string): string {
   const safe = name.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
   return safe || "profile-photo";

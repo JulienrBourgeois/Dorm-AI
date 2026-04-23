@@ -24,6 +24,7 @@ import {
 } from "@/lib/organizationDisplay";
 import { Loader } from "@/components/Loader";
 import { AdminBulkUploadAllModal } from "@/components/admin/AdminBulkUploadAllModal";
+import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
 
 type InspectionRow = WithId<Inspection> & { roomNumber: string };
 
@@ -188,10 +189,12 @@ export default function AdminDashboardPage() {
     <section className="animate-fade-in-up-cascade flex w-full flex-col gap-10">
       {/* Hero — same rhythm as marketing / home hub */}
       <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-        <div className="mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-xl shadow-primary/20 sm:h-20 sm:w-20 lg:mb-8 lg:h-[5.25rem] lg:w-[5.25rem]">
-          <span className="text-2xl font-bold text-white sm:text-3xl lg:text-3xl">
-            {org.name.charAt(0).toUpperCase()}
-          </span>
+        <div className="mb-6 lg:mb-8">
+          <OrganizationThumbnail
+            name={org.name}
+            thumbnailStoragePath={org.thumbnailStoragePath}
+            variant="hero"
+          />
         </div>
         <h1 className="max-w-3xl text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-5xl">
           {org.name}
@@ -206,9 +209,11 @@ export default function AdminDashboardPage() {
 
       {/* Org details */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:p-5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-sm font-bold text-white shadow-md shadow-primary/15">
-          {org.name.charAt(0).toUpperCase()}
-        </div>
+        <OrganizationThumbnail
+          name={org.name}
+          thumbnailStoragePath={org.thumbnailStoragePath}
+          variant="md"
+        />
         <div className="min-w-0 flex-1 text-left">
           <p className="text-sm font-semibold text-foreground">{org.name}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">

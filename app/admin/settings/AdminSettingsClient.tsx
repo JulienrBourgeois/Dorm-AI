@@ -11,6 +11,14 @@ import {
   getDocumentData,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import {
+  buildOrganizationThumbnailPath,
+  deleteFile,
+  getDownloadUrl,
+  uploadFile,
+  validateOrganizationThumbnailFile,
+} from "@/app/lib/firebase/storage";
+import { OrganizationThumbnailField } from "@/components/organization/OrganizationThumbnailField";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import {
   adminCardClass,
@@ -80,11 +88,19 @@ export function AdminSettingsClient() {
     website: "",
   });
   const [initialForm, setInitialForm] = useState<FormState | null>(null);
+  const [initialThumbnailPath, setInitialThumbnailPath] = useState("");
+  const [thumbnailResolvedUrl, setThumbnailResolvedUrl] = useState("");
+  const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
+  const [removeThumbnail, setRemoveThumbnail] = useState(false);
 
   useEffect(() => {
     if (!organizationId) {
       setOrganization(null);
       setInitialForm(null);
+      setInitialThumbnailPath("");
+      setThumbnailResolvedUrl("");
+      setSelectedThumbnailFile(null);
+      setRemoveThumbnail(false);
       setLoading(false);
       return;
     }
@@ -111,6 +127,10 @@ export function AdminSettingsClient() {
           website: "",
         },
       );
+      const thumbPath = data?.thumbnailStoragePath?.trim() ?? "";
+      setInitialThumbnailPath(thumbPath);
+      setSelectedThumbnailFile(null);
+      setRemoveThumbnail(false);
       setLoading(false);
     })();
 
@@ -119,10 +139,33 @@ export function AdminSettingsClient() {
     };
   }, [organizationId]);
 
+  useEffect(() => {
+    const path = organization?.thumbnailStoragePath?.trim();
+    if (!path || removeThumbnail) {
+      setThumbnailResolvedUrl("");
+      return;
+    }
+    let cancelled = false;
+    void getDownloadUrl(path)
+      .then((u) => {
+        if (!cancelled) setThumbnailResolvedUrl(u);
+      })
+      .catch(() => {
+        if (!cancelled) setThumbnailResolvedUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organization?.thumbnailStoragePath, removeThumbnail]);
+
   const dirty = useMemo(() => {
     if (!initialForm) return false;
-    return JSON.stringify(form) !== JSON.stringify(initialForm);
-  }, [form, initialForm]);
+    const formDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+    const thumbDirty =
+      Boolean(selectedThumbnailFile) ||
+      (removeThumbnail && Boolean(initialThumbnailPath));
+    return formDirty || thumbDirty;
+  }, [form, initialForm, selectedThumbnailFile, removeThumbnail, initialThumbnailPath]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -140,6 +183,40 @@ export function AdminSettingsClient() {
       return;
     }
 
+    const existingThumb = organization.thumbnailStoragePath?.trim() ?? "";
+    let uploadedThumbPath = "";
+    let nextThumbPath: string | undefined = undefined;
+    if (removeThumbnail) {
+      nextThumbPath = undefined;
+    } else if (selectedThumbnailFile) {
+      const photoErr = validateOrganizationThumbnailFile(selectedThumbnailFile);
+      if (photoErr) {
+        toast.error(photoErr);
+        return;
+      }
+      const uploadPath = buildOrganizationThumbnailPath(
+        organizationId,
+        selectedThumbnailFile.name,
+      );
+      try {
+        await uploadFile(uploadPath, selectedThumbnailFile, {
+          contentType: selectedThumbnailFile.type || "image/jpeg",
+        });
+        uploadedThumbPath = uploadPath;
+        nextThumbPath = uploadPath;
+      } catch {
+        toast.error("Could not upload thumbnail.");
+        return;
+      }
+    }
+
+    const thumbPayload: Record<string, unknown> = {};
+    if (removeThumbnail) {
+      thumbPayload.thumbnailStoragePath = deleteField();
+    } else if (selectedThumbnailFile && nextThumbPath) {
+      thumbPayload.thumbnailStoragePath = nextThumbPath;
+    }
+
     setSaving(true);
     try {
       await updateDocument(COLLECTIONS.organizations, organizationId, {
@@ -150,9 +227,18 @@ export function AdminSettingsClient() {
         state: form.state.trim() || deleteField(),
         postalCode: form.postalCode.trim() || deleteField(),
         website: website || deleteField(),
+        ...thumbPayload,
         updatedAt: dateToTimestamp(new Date()),
       });
 
+      if (
+        existingThumb &&
+        (removeThumbnail || (nextThumbPath && existingThumb !== nextThumbPath))
+      ) {
+        void deleteFile(existingThumb).catch(() => undefined);
+      }
+
+      const nextThumbStored = removeThumbnail ? undefined : nextThumbPath ?? organization.thumbnailStoragePath;
       const nextOrganization: Organization = {
         ...organization,
         name,
@@ -162,17 +248,38 @@ export function AdminSettingsClient() {
         state: form.state.trim() || undefined,
         postalCode: form.postalCode.trim() || undefined,
         website: website || undefined,
+        thumbnailStoragePath: nextThumbStored,
       };
       const nextForm = formFromOrganization(nextOrganization);
       setOrganization(nextOrganization);
       setInitialForm(nextForm);
       setForm(nextForm);
+      setInitialThumbnailPath(nextThumbStored?.trim() ?? "");
+      setSelectedThumbnailFile(null);
+      setRemoveThumbnail(false);
       toast.success("Organization updated.");
     } catch (err) {
+      if (uploadedThumbPath) {
+        void deleteFile(uploadedThumbPath).catch(() => undefined);
+      }
       toast.error(err instanceof Error ? err.message : "Failed to update organization.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSelectThumbnail(file: File | null) {
+    if (!file) {
+      setSelectedThumbnailFile(null);
+      return;
+    }
+    const err = validateOrganizationThumbnailFile(file);
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    setSelectedThumbnailFile(file);
+    setRemoveThumbnail(false);
   }
 
   if (!organizationId) {
@@ -269,7 +376,11 @@ export function AdminSettingsClient() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => initialForm && setForm(initialForm)}
+                onClick={() => {
+                  if (initialForm) setForm(initialForm);
+                  setSelectedThumbnailFile(null);
+                  setRemoveThumbnail(false);
+                }}
                 disabled={!dirty || saving}
                 className={adminSecondaryBtnClass}
               >
@@ -286,6 +397,20 @@ export function AdminSettingsClient() {
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2 flex flex-wrap items-end gap-4">
+              <OrganizationThumbnailField
+                organizationName={form.name.trim() || organization.name}
+                currentThumbnailUrl={!removeThumbnail ? thumbnailResolvedUrl : undefined}
+                selectedFile={selectedThumbnailFile}
+                disabled={saving}
+                onSelectFile={handleSelectThumbnail}
+                onClearSelection={() => setSelectedThumbnailFile(null)}
+                onRemoveCurrent={() => {
+                  setRemoveThumbnail(true);
+                  setSelectedThumbnailFile(null);
+                }}
+              />
+            </div>
             <div className="md:col-span-2">
               <label
                 htmlFor="org-name"

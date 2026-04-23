@@ -12,3 +12,7 @@ export {
   sanitizeFileName as sanitizeStorageFileName,
   validateProfilePhotoFile,
 } from "./profilePhoto";
+export {
+  buildOrganizationThumbnailPath,
+  validateOrganizationThumbnailFile,
+} from "./organizationThumbnail";

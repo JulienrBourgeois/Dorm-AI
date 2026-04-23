@@ -15,6 +15,10 @@ service firebase.storage {
       allow read, write: if signedIn();
     }
 
+    match /organizations/{organizationId}/thumbnail/{allPaths=**} {
+      allow read, write: if signedIn();
+    }
+
     match /users/{userId}/profile/{allPaths=**} {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }

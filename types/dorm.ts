@@ -70,6 +70,8 @@ export interface Organization {
   website?: string;
   /** Firebase Storage path for a site/property map image (organization-wide). */
   propertyMapStoragePath?: string;
+  /** Firebase Storage path for card / portal thumbnail image. */
+  thumbnailStoragePath?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -19,6 +19,7 @@ import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
 import { Loader } from "@/components/Loader";
 import { AccountDrawer } from "@/components/account/AccountDrawer";
 import { AppBrandReload } from "@/components/AppBrandReload";
+import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
 
 interface UserDocData {
   name?: string;
@@ -295,18 +296,26 @@ export function HomeDashboard() {
                     <Link
                       key={`${entry.id}-${entry.membershipRole}`}
                       href={hrefForAccess(entry)}
-                      className="group flex w-full flex-col rounded-xl border-2 border-zinc-200 bg-white p-5 text-left transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
+                      className="group flex w-full flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white text-left transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
                     >
-                      <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        {roleLabel(entry.membershipRole)}
-                      </span>
-                      <span className="mt-2 text-base font-semibold text-foreground">{entry.name}</span>
-                      <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        {formatOrganizationCardSubtitle(entry) || "Organization"}
-                      </span>
-                      <span className="mt-4 text-sm font-semibold text-accent transition-colors group-hover:underline">
-                        {portalCtaLabel(entry.membershipRole)} →
-                      </span>
+                      <OrganizationThumbnail
+                        name={entry.name}
+                        thumbnailStoragePath={entry.thumbnailStoragePath}
+                        variant="banner"
+                        className="shrink-0 rounded-b-none"
+                      />
+                      <div className="flex flex-col p-5">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          {roleLabel(entry.membershipRole)}
+                        </span>
+                        <span className="mt-2 text-base font-semibold text-foreground">{entry.name}</span>
+                        <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                          {formatOrganizationCardSubtitle(entry) || "Organization"}
+                        </span>
+                        <span className="mt-4 text-sm font-semibold text-accent transition-colors group-hover:underline">
+                          {portalCtaLabel(entry.membershipRole)} →
+                        </span>
+                      </div>
                     </Link>
                   ))}
                 </div>

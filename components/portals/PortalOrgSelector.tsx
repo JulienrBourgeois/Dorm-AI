@@ -18,6 +18,7 @@ import {
 } from "@/lib/portal/portalOrgNavigation";
 import type { Organization } from "@/types/dorm";
 import type { WithId } from "@/types";
+import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
 
 interface MembershipDoc {
   userId: string;
@@ -177,6 +178,12 @@ export function PortalOrgSelector({ portal }: Props) {
     searchKey,
   ]);
 
+  const currentOrgEntry = useMemo(() => {
+    const id = organizationId.trim();
+    if (!id) return undefined;
+    return portalEntries.find((e) => e.id === id);
+  }, [organizationId, portalEntries]);
+
   let displayLabel: string;
   if (onAdminLogin) {
     displayLabel = organizationId ? (resolvedName ?? "Loading…") : "Organization";
@@ -207,8 +214,15 @@ export function PortalOrgSelector({ portal }: Props) {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="inline-flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-lg py-1.5 pl-2 pr-1.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        className="inline-flex max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1.5 pl-2 pr-1.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
       >
+        {currentOrgEntry ? (
+          <OrganizationThumbnail
+            name={currentOrgEntry.name}
+            thumbnailStoragePath={currentOrgEntry.thumbnailStoragePath}
+            variant="sm"
+          />
+        ) : null}
         <span className="min-w-0 truncate">{displayLabel}</span>
         <IconChevronDown
           className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform dark:text-zinc-400 ${open ? "rotate-180" : ""}`}
@@ -248,16 +262,23 @@ export function PortalOrgSelector({ portal }: Props) {
                 role="option"
                 aria-selected={selected}
                 onClick={() => selectOrg(entry)}
-                className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                className={`flex w-full flex-row items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
                   selected
                     ? "bg-sky-50 text-sky-950 dark:bg-sky-950/50 dark:text-sky-100"
                     : "text-zinc-800 dark:text-zinc-100"
                 }`}
               >
-                <span className="font-medium">{label}</span>
-                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                  {roleLabel(entry.membershipRole)}
-                </span>
+                <OrganizationThumbnail
+                  name={label}
+                  thumbnailStoragePath={entry.thumbnailStoragePath}
+                  variant="sm"
+                />
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                  <span className="font-medium">{label}</span>
+                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                    {roleLabel(entry.membershipRole)}
+                  </span>
+                </div>
               </button>
             );
           })}

@@ -8,6 +8,7 @@ import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 import { COLLECTIONS, getDocumentData, queryCollection } from "@/app/lib/firebase/firestore";
 import type { Organization } from "@/types";
 import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
+import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
 
 type MembershipDoc = {
   userId?: string;
@@ -96,18 +97,29 @@ export function AdminOrganizationSelectorClient() {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {organizations.map((org) => (
-        <div key={org.id} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{org.name}</div>
-          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            {formatOrganizationCardSubtitle(org) || "Organization"}
-          </div>
-          <div className="mt-4 flex gap-2">
-            <Link
-              href={`/admin/dashboard?organizationId=${org.id}`}
-              className="flex-1 rounded-xl bg-primary px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-            >
-              Open dashboard
-            </Link>
+        <div
+          key={org.id}
+          className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <OrganizationThumbnail
+            name={org.name}
+            thumbnailStoragePath={org.thumbnailStoragePath}
+            variant="banner"
+            className="shrink-0 rounded-b-none rounded-t-2xl"
+          />
+          <div className="p-5">
+            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{org.name}</div>
+            <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              {formatOrganizationCardSubtitle(org) || "Organization"}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Link
+                href={`/admin/dashboard?organizationId=${org.id}`}
+                className="flex-1 rounded-xl bg-primary px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+              >
+                Open dashboard
+              </Link>
+            </div>
           </div>
         </div>
       ))}
