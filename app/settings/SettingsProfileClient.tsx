@@ -287,7 +287,6 @@ export function SettingsProfileClient() {
                 currentPhotoUrl={!removeCurrentPhoto ? profilePhotoUrl : undefined}
                 selectedFile={selectedProfilePhoto}
                 disabled={saving}
-                helperText="JPG, PNG, WEBP, or HEIC up to 5 MB."
                 onSelectFile={handleSelectProfilePhoto}
                 onClearSelection={() => setSelectedProfilePhoto(null)}
                 onRemoveCurrent={() => {

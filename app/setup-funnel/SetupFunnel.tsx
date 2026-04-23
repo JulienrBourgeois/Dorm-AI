@@ -245,8 +245,6 @@ export function SetupFunnel() {
             currentPhotoUrl={!removeCurrentPhoto ? profilePhotoUrl : undefined}
             selectedFile={selectedProfilePhoto}
             disabled={status === "submitting"}
-            label="Profile picture"
-            helperText="JPG, PNG, WEBP, or HEIC up to 5 MB."
             onSelectFile={handleSelectProfilePhoto}
             onClearSelection={() => setSelectedProfilePhoto(null)}
             onRemoveCurrent={() => {
