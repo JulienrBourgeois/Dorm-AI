@@ -3,48 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { AccountAvatar } from "./AccountAvatar";
 
 export type AccountDrawerShortcut = { href: string; label: string };
-
-function getInitials(displayName?: string, email?: string): string {
-  const n = displayName?.trim();
-  if (n) {
-    const parts = n.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return (
-        (parts[0][0] ?? "") + (parts[parts.length - 1][0] ?? "")
-      ).toUpperCase();
-    }
-    return n.slice(0, 2).toUpperCase();
-  }
-  const e = email?.trim();
-  if (e) return e.slice(0, 2).toUpperCase();
-  return "";
-}
-
-function UserCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c1.8-4 14.2-4 16 0" />
-    </svg>
-  );
-}
 
 type AccountDrawerProps = {
   displayName?: string;
   email?: string;
+  photoUrl?: string;
   shortcuts?: AccountDrawerShortcut[];
   onSignOut: () => void | Promise<void>;
   /** Extra classes for the round trigger button (e.g. dark headers). */
@@ -57,6 +23,7 @@ const BACKDROP_Z = 99_999;
 export function AccountDrawer({
   displayName,
   email,
+  photoUrl,
   shortcuts = [],
   onSignOut,
   triggerClassName,
@@ -136,9 +103,6 @@ export function AccountDrawer({
     }
   }
 
-  const initials = getInitials(displayName, email);
-  const showInitials = initials.length > 0;
-
   const triggerBase =
     "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-zinc-200 bg-zinc-100 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-zinc-500 dark:hover:bg-zinc-700";
 
@@ -184,13 +148,14 @@ export function AccountDrawer({
 
           <div className="border-b border-zinc-200 px-6 py-6 dark:border-zinc-800">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white shadow-md shadow-primary/20">
-                {showInitials ? (
-                  initials
-                ) : (
-                  <UserCircleIcon className="text-white opacity-95" />
-                )}
-              </div>
+              <AccountAvatar
+                displayName={displayName}
+                email={email}
+                photoUrl={photoUrl}
+                className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-secondary text-xl font-bold text-white shadow-md shadow-primary/20"
+                imageClassName="h-full w-full object-cover"
+                fallbackClassName="text-white opacity-95"
+              />
               <div className="min-w-0 flex-1">
                 {displayName ? (
                   <p className="truncate font-semibold text-foreground">{displayName}</p>
@@ -258,11 +223,14 @@ export function AccountDrawer({
         onClick={menuVisible ? closeMenu : openMenu}
         className={`${triggerBase} ${triggerClassName ?? ""}`.trim()}
       >
-        {showInitials ? (
-          <span aria-hidden>{initials}</span>
-        ) : (
-          <UserCircleIcon className="text-zinc-600 dark:text-zinc-300" />
-        )}
+        <AccountAvatar
+          displayName={displayName}
+          email={email}
+          photoUrl={photoUrl}
+          className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+          imageClassName="h-full w-full object-cover"
+          fallbackClassName="text-zinc-600 dark:text-zinc-300"
+        />
       </button>
 
       {mounted && portal ? createPortal(portal, document.body) : null}

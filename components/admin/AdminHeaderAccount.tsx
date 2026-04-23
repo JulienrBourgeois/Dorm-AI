@@ -7,7 +7,7 @@ import { useAuthAccountProfile } from "@/hooks/auth/useAuthAccountProfile";
 import { clearSessionCookie } from "@/lib/admin/adminAuth";
 export function AdminHeaderAccount({ organizationId: _organizationId = "" }: { organizationId?: string }) {
   const router = useRouter();
-  const { displayName, email } = useAuthAccountProfile();
+  const { displayName, email, photoUrl } = useAuthAccountProfile();
 
   async function onSignOut() {
     await clearSessionCookie();
@@ -19,6 +19,7 @@ export function AdminHeaderAccount({ organizationId: _organizationId = "" }: { o
     <AccountDrawer
       displayName={displayName || undefined}
       email={email || undefined}
+      photoUrl={photoUrl || undefined}
       onSignOut={onSignOut}
       shortcuts={[
         { href: "/home/dashboard", label: "Organizations" },

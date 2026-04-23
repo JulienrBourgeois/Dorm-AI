@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { deleteField } from "firebase/firestore";
 import { toast } from "sonner";
 import {
   Shell,
@@ -24,6 +25,14 @@ import {
   dateToTimestamp,
 } from "@/app/lib/firebase/firestore";
 import {
+  buildUserProfilePhotoPath,
+  deleteFile,
+  getDownloadUrl,
+  uploadFile,
+  validateProfilePhotoFile,
+} from "@/app/lib/firebase/storage";
+import { ProfilePhotoField } from "@/components/account/ProfilePhotoField";
+import {
   e164ToUsPhoneInput,
   formatUsPhoneInput,
   isValidNanp10,
@@ -36,6 +45,7 @@ interface UserDocData {
   email?: string;
   phone?: string;
   dateOfBirth?: string;
+  profilePhotoPath?: string;
 }
 
 export function SetupFunnel() {
@@ -44,6 +54,10 @@ export function SetupFunnel() {
   const [name, setName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phone, setPhone] = useState("");
+  const [profilePhotoPath, setProfilePhotoPath] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [selectedProfilePhoto, setSelectedProfilePhoto] = useState<File | null>(null);
+  const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (callbackUser) => {
@@ -60,6 +74,18 @@ export function SetupFunnel() {
       setName(data?.name ?? user.displayName ?? "");
       setDateOfBirth(data?.dateOfBirth ?? "");
       setPhone(data?.phone ? e164ToUsPhoneInput(data.phone) : "");
+      const loadedPhotoPath = data?.profilePhotoPath ?? "";
+      setProfilePhotoPath(loadedPhotoPath);
+      if (loadedPhotoPath) {
+        try {
+          const url = await getDownloadUrl(loadedPhotoPath);
+          setProfilePhotoUrl(url);
+        } catch {
+          setProfilePhotoUrl("");
+        }
+      } else {
+        setProfilePhotoUrl("");
+      }
       setStatus("ready");
     });
     return unsubscribe;
@@ -105,20 +131,71 @@ export function SetupFunnel() {
       setStatus("ready");
       return;
     }
+    const existingPhotoPath = profilePhotoPath.trim();
+    let nextPhotoPath: string | null = removeCurrentPhoto ? null : existingPhotoPath || null;
+    let uploadedPhotoPath = "";
+    if (selectedProfilePhoto) {
+      const photoError = validateProfilePhotoFile(selectedProfilePhoto);
+      if (photoError) {
+        toast.error(photoError);
+        setStatus("ready");
+        return;
+      }
+      const uploadPath = buildUserProfilePhotoPath(user.uid, selectedProfilePhoto.name);
+      try {
+        await uploadFile(uploadPath, selectedProfilePhoto, { contentType: selectedProfilePhoto.type || "image/jpeg" });
+        nextPhotoPath = uploadPath;
+        uploadedPhotoPath = uploadPath;
+      } catch {
+        toast.error("Could not upload profile picture.");
+        setStatus("ready");
+        return;
+      }
+    }
     try {
+      const photoUpdate =
+        nextPhotoPath !== null
+          ? { profilePhotoPath: nextPhotoPath }
+          : removeCurrentPhoto
+            ? { profilePhotoPath: deleteField() }
+            : {};
       await updateDocument(COLLECTIONS.users, user.uid, {
         id: user.uid,
         name: trimmedName,
         dateOfBirth: dobTrimmed,
         phone: phoneE164,
         email: user.email ?? "",
+        ...photoUpdate,
         updatedAt: dateToTimestamp(new Date()),
       } as Parameters<typeof updateDocument>[2]);
+      if (existingPhotoPath && nextPhotoPath !== existingPhotoPath) {
+        void deleteFile(existingPhotoPath).catch(() => undefined);
+      }
+      setProfilePhotoPath(nextPhotoPath ?? "");
+      setSelectedProfilePhoto(null);
+      setRemoveCurrentPhoto(false);
       router.push("/home/dashboard");
     } catch (err) {
+      if (uploadedPhotoPath) {
+        void deleteFile(uploadedPhotoPath).catch(() => undefined);
+      }
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
       setStatus("ready");
     }
+  }
+
+  function handleSelectProfilePhoto(file: File | null) {
+    if (!file) {
+      setSelectedProfilePhoto(null);
+      return;
+    }
+    const photoError = validateProfilePhotoFile(file);
+    if (photoError) {
+      toast.error(photoError);
+      return;
+    }
+    setSelectedProfilePhoto(file);
+    setRemoveCurrentPhoto(false);
   }
 
   async function handleSignOut() {
@@ -141,6 +218,7 @@ export function SetupFunnel() {
         <AccountDrawer
           displayName={name.trim() || undefined}
           email={auth.currentUser?.email ?? undefined}
+          photoUrl={!removeCurrentPhoto ? profilePhotoUrl || undefined : undefined}
           shortcuts={[
             { href: "/", label: "About Inspect AI" },
             { href: "/settings", label: "Profile" },
@@ -161,6 +239,21 @@ export function SetupFunnel() {
           className={`flex w-full flex-col gap-5 ${status === "submitting" ? "pointer-events-none" : ""}`}
           aria-busy={status === "submitting"}
         >
+          <ProfilePhotoField
+            displayName={name}
+            email={auth.currentUser?.email ?? undefined}
+            currentPhotoUrl={!removeCurrentPhoto ? profilePhotoUrl : undefined}
+            selectedFile={selectedProfilePhoto}
+            disabled={status === "submitting"}
+            label="Profile picture"
+            helperText="JPG, PNG, WEBP, or HEIC up to 5 MB."
+            onSelectFile={handleSelectProfilePhoto}
+            onClearSelection={() => setSelectedProfilePhoto(null)}
+            onRemoveCurrent={() => {
+              setRemoveCurrentPhoto(true);
+              setSelectedProfilePhoto(null);
+            }}
+          />
           <div className="w-full">
             <label htmlFor="setup-name" className="sr-only">
               Your name

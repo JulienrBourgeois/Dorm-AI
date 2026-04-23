@@ -13,7 +13,15 @@ import {
   getDocumentData,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import {
+  buildUserProfilePhotoPath,
+  deleteFile,
+  getDownloadUrl,
+  uploadFile,
+  validateProfilePhotoFile,
+} from "@/app/lib/firebase/storage";
 import { BackLink } from "@/components/auth/ui";
+import { ProfilePhotoField } from "@/components/account/ProfilePhotoField";
 import {
   adminCardClass,
   adminInputClass,
@@ -43,6 +51,10 @@ export function SettingsProfileClient() {
   const [phone, setPhone] = useState("");
   const [initialName, setInitialName] = useState("");
   const [initialPhone, setInitialPhone] = useState("");
+  const [profilePhotoPath, setProfilePhotoPath] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [selectedProfilePhoto, setSelectedProfilePhoto] = useState<File | null>(null);
+  const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,10 +72,22 @@ export function SettingsProfileClient() {
       const n =
         data?.name?.trim() || user.displayName?.trim() || "";
       const p = data?.phone ? e164ToUsPhoneInput(data.phone) : "";
+      const photoPath = data?.profilePhotoPath?.trim() || "";
       setName(n);
       setPhone(p);
       setInitialName(n);
       setInitialPhone(p);
+      setProfilePhotoPath(photoPath);
+      if (photoPath) {
+        try {
+          const url = await getDownloadUrl(photoPath);
+          setProfilePhotoUrl(url);
+        } catch {
+          setProfilePhotoUrl("");
+        }
+      } else {
+        setProfilePhotoUrl("");
+      }
       setLoadState("ready");
     });
     return () => {
@@ -74,7 +98,9 @@ export function SettingsProfileClient() {
 
   const dirty =
     name.trim() !== initialName.trim() ||
-    usPhoneDigitsFromInput(phone) !== usPhoneDigitsFromInput(initialPhone);
+    usPhoneDigitsFromInput(phone) !== usPhoneDigitsFromInput(initialPhone) ||
+    Boolean(selectedProfilePhoto) ||
+    removeCurrentPhoto;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -105,16 +131,45 @@ export function SettingsProfileClient() {
       }
       phonePayload = e164;
     }
+    const existingPhotoPath = profilePhotoPath.trim();
+    let nextPhotoPath: string | null = removeCurrentPhoto ? null : existingPhotoPath || null;
+    let uploadedPhotoPath = "";
+    if (selectedProfilePhoto) {
+      const photoError = validateProfilePhotoFile(selectedProfilePhoto);
+      if (photoError) {
+        toast.error(photoError);
+        return;
+      }
+      const uploadPath = buildUserProfilePhotoPath(user.uid, selectedProfilePhoto.name);
+      try {
+        await uploadFile(uploadPath, selectedProfilePhoto, { contentType: selectedProfilePhoto.type || "image/jpeg" });
+        nextPhotoPath = uploadPath;
+        uploadedPhotoPath = uploadPath;
+      } catch {
+        toast.error("Could not upload profile picture.");
+        return;
+      }
+    }
 
     setSaving(true);
     try {
+      const photoUpdate =
+        nextPhotoPath !== null
+          ? { profilePhotoPath: nextPhotoPath }
+          : removeCurrentPhoto
+            ? { profilePhotoPath: deleteField() }
+            : {};
       await updateDocument(COLLECTIONS.users, user.uid, {
         id: user.uid,
         name: trimmedName,
         phone: phonePayload,
         email: user.email ?? "",
+        ...photoUpdate,
         updatedAt: dateToTimestamp(new Date()),
       } as Parameters<typeof updateDocument>[2]);
+      if (existingPhotoPath && nextPhotoPath !== existingPhotoPath) {
+        void deleteFile(existingPhotoPath).catch(() => undefined);
+      }
       setName(trimmedName);
       setInitialName(trimmedName);
       if (typeof phonePayload === "string") {
@@ -125,8 +180,24 @@ export function SettingsProfileClient() {
         setPhone("");
         setInitialPhone("");
       }
+      setProfilePhotoPath(nextPhotoPath ?? "");
+      if (nextPhotoPath) {
+        try {
+          const url = await getDownloadUrl(nextPhotoPath);
+          setProfilePhotoUrl(url);
+        } catch {
+          setProfilePhotoUrl("");
+        }
+      } else {
+        setProfilePhotoUrl("");
+      }
+      setSelectedProfilePhoto(null);
+      setRemoveCurrentPhoto(false);
       toast.success("Profile saved.");
     } catch (err) {
+      if (uploadedPhotoPath) {
+        void deleteFile(uploadedPhotoPath).catch(() => undefined);
+      }
       toast.error(err instanceof Error ? err.message : "Could not save profile.");
     } finally {
       setSaving(false);
@@ -138,6 +209,20 @@ export function SettingsProfileClient() {
     await clearSessionCookie();
     await signOutUser();
     router.push("/");
+  }
+
+  function handleSelectProfilePhoto(file: File | null) {
+    if (!file) {
+      setSelectedProfilePhoto(null);
+      return;
+    }
+    const photoError = validateProfilePhotoFile(file);
+    if (photoError) {
+      toast.error(photoError);
+      return;
+    }
+    setSelectedProfilePhoto(file);
+    setRemoveCurrentPhoto(false);
   }
 
   if (loadState === "loading") {
@@ -196,6 +281,20 @@ export function SettingsProfileClient() {
             </div>
 
             <div className="mt-6 grid gap-5">
+              <ProfilePhotoField
+                displayName={name}
+                email={email}
+                currentPhotoUrl={!removeCurrentPhoto ? profilePhotoUrl : undefined}
+                selectedFile={selectedProfilePhoto}
+                disabled={saving}
+                helperText="JPG, PNG, WEBP, or HEIC up to 5 MB."
+                onSelectFile={handleSelectProfilePhoto}
+                onClearSelection={() => setSelectedProfilePhoto(null)}
+                onRemoveCurrent={() => {
+                  setRemoveCurrentPhoto(true);
+                  setSelectedProfilePhoto(null);
+                }}
+              />
               <div>
                 <label
                   htmlFor="profile-name"

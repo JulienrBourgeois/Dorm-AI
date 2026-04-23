@@ -15,7 +15,7 @@ export function PortalHeaderAccount({
   organizationId?: string;
 }) {
   const router = useRouter();
-  const { displayName, email } = useAuthAccountProfile();
+  const { displayName, email, photoUrl } = useAuthAccountProfile();
 
   const shortcuts = [
     { href: "/home/dashboard", label: "Organizations" },
@@ -32,6 +32,7 @@ export function PortalHeaderAccount({
     <AccountDrawer
       displayName={displayName || undefined}
       email={email || undefined}
+      photoUrl={photoUrl || undefined}
       onSignOut={onSignOut}
       shortcuts={shortcuts}
     />

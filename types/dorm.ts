@@ -42,6 +42,8 @@ export interface User {
   id?: string;
   name: string;
   email: string;
+  /** Firebase Storage path for the user's profile photo. */
+  profilePhotoPath?: string;
   phone?: string;
   gender?: string;
   bornAt?: Date;

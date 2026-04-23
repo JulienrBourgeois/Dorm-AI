@@ -7,3 +7,8 @@ export { getDownloadUrl } from "./url";
 export { deleteFile } from "./delete";
 export { listFiles, listAllFiles } from "./list";
 export { getFileMetadata } from "./metadata";
+export {
+  buildUserProfilePhotoPath,
+  sanitizeFileName as sanitizeStorageFileName,
+  validateProfilePhotoFile,
+} from "./profilePhoto";

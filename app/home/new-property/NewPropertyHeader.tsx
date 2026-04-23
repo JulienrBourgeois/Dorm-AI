@@ -9,7 +9,7 @@ import { clearSessionCookie } from "@/lib/admin/adminAuth";
 
 export function NewPropertyHeader() {
   const router = useRouter();
-  const { displayName, email } = useAuthAccountProfile();
+  const { displayName, email, photoUrl } = useAuthAccountProfile();
 
   async function onSignOut() {
     await clearSessionCookie();
@@ -23,6 +23,7 @@ export function NewPropertyHeader() {
       <AccountDrawer
         displayName={displayName || undefined}
         email={email || undefined}
+        photoUrl={photoUrl || undefined}
         shortcuts={[
           { href: "/home/dashboard", label: "Home" },
           { href: "/settings", label: "Profile" },

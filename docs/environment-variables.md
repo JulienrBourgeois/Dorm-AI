@@ -59,6 +59,7 @@ The app uses **environment code** in `app/lib/env.ts` to decide sandbox vs produ
 
 - **Firestore** uses a separate database with ID `sandbox` (production uses the default database). See [Firestore](firestore.md).
 - **Storage** uses fixed bucket names: `dorm-ai-sandbox` (sandbox) and `dorm-ai.firebasestorage.app` (prod); see `STORAGE_BUCKET_SANDBOX` and `STORAGE_BUCKET_PROD` in `app/lib/env.ts`. The active bucket is returned by `getStorageBucketName()`.
+- **User profile pictures** stored under `users/{uid}/profile/*` use that same active Storage bucket, so preview/local uploads remain isolated from production uploads.
 
 | Variable | Purpose |
 |---------|---------|

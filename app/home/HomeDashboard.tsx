@@ -11,6 +11,7 @@ import {
   queryCollection,
   COLLECTIONS,
 } from "@/app/lib/firebase/firestore";
+import { getDownloadUrl } from "@/app/lib/firebase/storage";
 import { where } from "firebase/firestore";
 import type { Organization } from "@/types/dorm";
 import type { WithId } from "@/types";
@@ -22,6 +23,7 @@ import { AppBrandReload } from "@/components/AppBrandReload";
 interface UserDocData {
   name?: string;
   dateOfBirth?: string;
+  profilePhotoPath?: string;
 }
 
 interface MembershipDoc {
@@ -38,6 +40,7 @@ export function HomeDashboard() {
   const [guardReady, setGuardReady] = useState(false);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
+  const [userPhotoUrl, setUserPhotoUrl] = useState("");
   const [orgAccess, setOrgAccess] = useState<OrgAccess[]>([]);
   const [joinCode, setJoinCode] = useState("");
   const [joinLoading, setJoinLoading] = useState(false);
@@ -59,6 +62,17 @@ export function HomeDashboard() {
       }
       setUserName(userData.name ?? "there");
       setUserEmail(user.email ?? "");
+      const profilePath = userData.profilePhotoPath?.trim();
+      if (profilePath) {
+        try {
+          const url = await getDownloadUrl(profilePath);
+          setUserPhotoUrl(url);
+        } catch {
+          setUserPhotoUrl("");
+        }
+      } else {
+        setUserPhotoUrl("");
+      }
 
       const snapshot = await queryCollection(
         COLLECTIONS.memberships,
@@ -195,6 +209,7 @@ export function HomeDashboard() {
         <AccountDrawer
           displayName={userName !== "there" ? userName : undefined}
           email={userEmail || undefined}
+          photoUrl={userPhotoUrl || undefined}
           shortcuts={[
             { href: "/home/new-property", label: "New property" },
             { href: "/settings", label: "Profile" },
