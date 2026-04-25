@@ -24,7 +24,8 @@ import {
 } from "@/lib/organizationDisplay";
 import { Loader } from "@/components/Loader";
 import { AdminBulkUploadAllModal } from "@/components/admin/AdminBulkUploadAllModal";
-import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
+import { OrganizationCardThumbnail } from "@/components/organization/OrganizationCardThumbnail";
+import { getOrganizationCardThumbnailStoragePath } from "@/lib/organization/organizationCardThumbnailPath";
 
 type InspectionRow = WithId<Inspection> & { roomNumber: string };
 
@@ -184,57 +185,46 @@ export default function AdminDashboardPage() {
 
   const typeLabel = organizationTypeLabel(org.organizationType);
   const subtitle = formatOrganizationCardSubtitle(org);
+  const orgWithLegacy = org as Organization & { thumbnailStoragePath?: string };
+  const cardBannerPath = getOrganizationCardThumbnailStoragePath(orgWithLegacy);
 
   return (
     <section className="animate-fade-in-up-cascade flex w-full flex-col gap-10">
-      {/* Hero — same rhythm as marketing / home hub */}
-      <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-        <div className="mb-6 lg:mb-8">
-          <OrganizationThumbnail
-            name={org.name}
-            thumbnailStoragePath={org.thumbnailStoragePath}
-            variant="hero"
-          />
-        </div>
-        <h1 className="max-w-3xl text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-5xl">
-          {org.name}
-          <span className="text-accent">.</span>
-        </h1>
-        <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-500 sm:text-lg dark:text-zinc-400">
-          {subtitle ||
-            (typeLabel ? `${typeLabel} · Operations overview` : null) ||
-            "Your property command center—buildings, rooms, people, and inspections in one place."}
-        </p>
-      </div>
-
-      {/* Org details */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:p-5">
-        <OrganizationThumbnail
+      {/* Single org header card: card thumbnail strip + one text block (no duplicate logo / name) */}
+      <div className="overflow-hidden rounded-2xl border-2 border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+        <OrganizationCardThumbnail
           name={org.name}
-          thumbnailStoragePath={org.thumbnailStoragePath}
-          variant="md"
+          cardThumbnailPath={cardBannerPath}
+          className="max-h-48 min-h-[8rem] rounded-none sm:min-h-[9rem]"
+          imageClassName="object-top"
         />
-        <div className="min-w-0 flex-1 text-left">
-          <p className="text-sm font-semibold text-foreground">{org.name}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-            {typeLabel && <span>{typeLabel}</span>}
-            {org.addressLine1 && <span>{org.addressLine1}</span>}
-            {org.city && org.state && (
-              <span>
-                {org.city}, {org.state} {org.postalCode ?? ""}
-              </span>
-            )}
-            {org.website && (
-              <a
-                href={org.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-accent hover:underline"
-              >
-                Website ↗
-              </a>
-            )}
-          </div>
+        <div className="p-5 text-left sm:p-6">
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+            {org.name}
+          </h1>
+          {(subtitle || typeLabel) && (
+            <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300 sm:text-base">
+              {subtitle || typeLabel}
+            </p>
+          )}
+          {org.addressLine1?.trim() ? (
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{org.addressLine1.trim()}</p>
+          ) : null}
+          {!subtitle && org.city?.trim() && org.state?.trim() ? (
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {org.city}, {org.state} {org.postalCode?.trim() ?? ""}
+            </p>
+          ) : null}
+          {org.website ? (
+            <a
+              href={org.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex text-sm font-semibold text-accent hover:underline"
+            >
+              Website ↗
+            </a>
+          ) : null}
         </div>
       </div>
 

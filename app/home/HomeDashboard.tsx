@@ -16,10 +16,12 @@ import { where } from "firebase/firestore";
 import type { Organization } from "@/types/dorm";
 import type { WithId } from "@/types";
 import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
+import { AppLogoMark } from "@/components/AppLogoMark";
 import { Loader } from "@/components/Loader";
 import { AccountDrawer } from "@/components/account/AccountDrawer";
 import { AppBrandReload } from "@/components/AppBrandReload";
-import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
+import { OrganizationCardThumbnail } from "@/components/organization/OrganizationCardThumbnail";
+import { getOrganizationCardThumbnailStoragePath } from "@/lib/organization/organizationCardThumbnailPath";
 
 interface UserDocData {
   name?: string;
@@ -223,9 +225,10 @@ export function HomeDashboard() {
         <div className="animate-fade-in-up-cascade flex w-full max-w-6xl flex-col gap-10 lg:flex-row lg:items-start lg:justify-between lg:gap-12">
           {/* Left: welcome + actions */}
           <div className="flex w-full min-w-0 flex-1 flex-col items-center text-center lg:max-w-xl lg:items-start lg:text-left">
-            <div className="mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-xl shadow-primary/20 sm:h-20 sm:w-20 lg:mb-8 lg:h-[5.25rem] lg:w-[5.25rem]">
-              <span className="text-2xl font-bold text-white sm:text-3xl lg:text-3xl">I</span>
-            </div>
+            <AppLogoMark
+              className="mb-6 h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20 lg:mb-8 lg:h-[5.25rem] lg:w-[5.25rem]"
+              wrapperClassName="rounded-3xl shadow-xl shadow-primary/20"
+            />
 
             <h1 className="text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-5xl">
               Hey {firstName},{" "}
@@ -298,10 +301,11 @@ export function HomeDashboard() {
                       href={hrefForAccess(entry)}
                       className="group flex w-full flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white text-left transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
                     >
-                      <OrganizationThumbnail
+                      <OrganizationCardThumbnail
                         name={entry.name}
-                        thumbnailStoragePath={entry.thumbnailStoragePath}
-                        variant="banner"
+                        cardThumbnailPath={getOrganizationCardThumbnailStoragePath(
+                          entry as WithId<Organization> & { thumbnailStoragePath?: string },
+                        )}
                         className="shrink-0 rounded-b-none"
                       />
                       <div className="flex flex-col p-5">

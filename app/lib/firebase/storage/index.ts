@@ -13,6 +13,10 @@ export {
   validateProfilePhotoFile,
 } from "./profilePhoto";
 export {
-  buildOrganizationThumbnailPath,
-  validateOrganizationThumbnailFile,
-} from "./organizationThumbnail";
+  buildOrganizationProfilePhotoPath,
+  validateOrganizationProfilePhotoFile,
+} from "./organizationProfilePhoto";
+export {
+  buildOrganizationCardThumbnailPath,
+  validateOrganizationCardThumbnailFile,
+} from "./organizationCardThumbnail";

@@ -12,13 +12,18 @@ import {
   updateDocument,
 } from "@/app/lib/firebase/firestore";
 import {
-  buildOrganizationThumbnailPath,
+  buildOrganizationCardThumbnailPath,
+  buildOrganizationProfilePhotoPath,
   deleteFile,
   getDownloadUrl,
   uploadFile,
-  validateOrganizationThumbnailFile,
+  validateOrganizationCardThumbnailFile,
+  validateOrganizationProfilePhotoFile,
 } from "@/app/lib/firebase/storage";
-import { OrganizationThumbnailField } from "@/components/organization/OrganizationThumbnailField";
+import { OrganizationCardThumbnailField } from "@/components/organization/OrganizationCardThumbnailField";
+import { OrganizationProfilePhotoField } from "@/components/organization/OrganizationProfilePhotoField";
+import { getOrganizationCardThumbnailStoragePath } from "@/lib/organization/organizationCardThumbnailPath";
+import { getOrganizationProfilePhotoStoragePath } from "@/lib/organization/organizationProfilePhotoPath";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import {
   adminCardClass,
@@ -88,19 +93,29 @@ export function AdminSettingsClient() {
     website: "",
   });
   const [initialForm, setInitialForm] = useState<FormState | null>(null);
-  const [initialThumbnailPath, setInitialThumbnailPath] = useState("");
-  const [thumbnailResolvedUrl, setThumbnailResolvedUrl] = useState("");
-  const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
-  const [removeThumbnail, setRemoveThumbnail] = useState(false);
+  const [initialProfilePhotoPath, setInitialProfilePhotoPath] = useState("");
+  const [profilePhotoResolvedUrl, setProfilePhotoResolvedUrl] = useState("");
+  const [selectedProfilePhotoFile, setSelectedProfilePhotoFile] = useState<File | null>(null);
+  const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
+  const [hadLegacyThumbnailFirestoreField, setHadLegacyThumbnailFirestoreField] = useState(false);
+  const [initialCardThumbnailPath, setInitialCardThumbnailPath] = useState("");
+  const [cardThumbnailResolvedUrl, setCardThumbnailResolvedUrl] = useState("");
+  const [selectedCardThumbnailFile, setSelectedCardThumbnailFile] = useState<File | null>(null);
+  const [removeCardThumbnail, setRemoveCardThumbnail] = useState(false);
 
   useEffect(() => {
     if (!organizationId) {
       setOrganization(null);
       setInitialForm(null);
-      setInitialThumbnailPath("");
-      setThumbnailResolvedUrl("");
-      setSelectedThumbnailFile(null);
-      setRemoveThumbnail(false);
+      setInitialProfilePhotoPath("");
+      setProfilePhotoResolvedUrl("");
+      setSelectedProfilePhotoFile(null);
+      setRemoveProfilePhoto(false);
+      setHadLegacyThumbnailFirestoreField(false);
+      setInitialCardThumbnailPath("");
+      setCardThumbnailResolvedUrl("");
+      setSelectedCardThumbnailFile(null);
+      setRemoveCardThumbnail(false);
       setLoading(false);
       return;
     }
@@ -127,10 +142,17 @@ export function AdminSettingsClient() {
           website: "",
         },
       );
-      const thumbPath = data?.thumbnailStoragePath?.trim() ?? "";
-      setInitialThumbnailPath(thumbPath);
-      setSelectedThumbnailFile(null);
-      setRemoveThumbnail(false);
+      const rawOrg = data as Organization & { thumbnailStoragePath?: string };
+      const photoPath = getOrganizationProfilePhotoStoragePath(rawOrg) ?? "";
+      setInitialProfilePhotoPath(photoPath);
+      setInitialCardThumbnailPath(getOrganizationCardThumbnailStoragePath(rawOrg) ?? "");
+      setHadLegacyThumbnailFirestoreField(
+        Boolean(rawOrg.thumbnailStoragePath?.trim()),
+      );
+      setSelectedProfilePhotoFile(null);
+      setRemoveProfilePhoto(false);
+      setSelectedCardThumbnailFile(null);
+      setRemoveCardThumbnail(false);
       setLoading(false);
     })();
 
@@ -140,32 +162,65 @@ export function AdminSettingsClient() {
   }, [organizationId]);
 
   useEffect(() => {
-    const path = organization?.thumbnailStoragePath?.trim();
-    if (!path || removeThumbnail) {
-      setThumbnailResolvedUrl("");
+    const path = getOrganizationProfilePhotoStoragePath(organization ?? undefined);
+    if (!path || removeProfilePhoto) {
+      setProfilePhotoResolvedUrl("");
       return;
     }
     let cancelled = false;
     void getDownloadUrl(path)
       .then((u) => {
-        if (!cancelled) setThumbnailResolvedUrl(u);
+        if (!cancelled) setProfilePhotoResolvedUrl(u);
       })
       .catch(() => {
-        if (!cancelled) setThumbnailResolvedUrl("");
+        if (!cancelled) setProfilePhotoResolvedUrl("");
       });
     return () => {
       cancelled = true;
     };
-  }, [organization?.thumbnailStoragePath, removeThumbnail]);
+  }, [organization, removeProfilePhoto]);
+
+  useEffect(() => {
+    const path = getOrganizationCardThumbnailStoragePath(
+      organization as Organization & { thumbnailStoragePath?: string },
+    );
+    if (!path || removeCardThumbnail) {
+      setCardThumbnailResolvedUrl("");
+      return;
+    }
+    let cancelled = false;
+    void getDownloadUrl(path)
+      .then((u) => {
+        if (!cancelled) setCardThumbnailResolvedUrl(u);
+      })
+      .catch(() => {
+        if (!cancelled) setCardThumbnailResolvedUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organization, removeCardThumbnail]);
 
   const dirty = useMemo(() => {
     if (!initialForm) return false;
     const formDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
-    const thumbDirty =
-      Boolean(selectedThumbnailFile) ||
-      (removeThumbnail && Boolean(initialThumbnailPath));
-    return formDirty || thumbDirty;
-  }, [form, initialForm, selectedThumbnailFile, removeThumbnail, initialThumbnailPath]);
+    const photoDirty =
+      Boolean(selectedProfilePhotoFile) ||
+      (removeProfilePhoto && Boolean(initialProfilePhotoPath));
+    const cardDirty =
+      Boolean(selectedCardThumbnailFile) ||
+      (removeCardThumbnail && Boolean(initialCardThumbnailPath));
+    return formDirty || photoDirty || cardDirty;
+  }, [
+    form,
+    initialForm,
+    selectedProfilePhotoFile,
+    removeProfilePhoto,
+    initialProfilePhotoPath,
+    selectedCardThumbnailFile,
+    removeCardThumbnail,
+    initialCardThumbnailPath,
+  ]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -183,38 +238,91 @@ export function AdminSettingsClient() {
       return;
     }
 
-    const existingThumb = organization.thumbnailStoragePath?.trim() ?? "";
-    let uploadedThumbPath = "";
-    let nextThumbPath: string | undefined = undefined;
-    if (removeThumbnail) {
-      nextThumbPath = undefined;
-    } else if (selectedThumbnailFile) {
-      const photoErr = validateOrganizationThumbnailFile(selectedThumbnailFile);
+    const orgWithLegacy = organization as Organization & { thumbnailStoragePath?: string };
+    const existingPhotoPath =
+      getOrganizationProfilePhotoStoragePath(organization) ?? "";
+    const existingCardPath = getOrganizationCardThumbnailStoragePath(orgWithLegacy) ?? "";
+
+    let uploadedPhotoPath = "";
+    let nextPhotoPath: string | undefined = undefined;
+    if (removeProfilePhoto) {
+      nextPhotoPath = undefined;
+    } else if (selectedProfilePhotoFile) {
+      const photoErr = validateOrganizationProfilePhotoFile(selectedProfilePhotoFile);
       if (photoErr) {
         toast.error(photoErr);
         return;
       }
-      const uploadPath = buildOrganizationThumbnailPath(
+      const uploadPath = buildOrganizationProfilePhotoPath(
         organizationId,
-        selectedThumbnailFile.name,
+        selectedProfilePhotoFile.name,
       );
       try {
-        await uploadFile(uploadPath, selectedThumbnailFile, {
-          contentType: selectedThumbnailFile.type || "image/jpeg",
+        await uploadFile(uploadPath, selectedProfilePhotoFile, {
+          contentType: selectedProfilePhotoFile.type || "image/jpeg",
         });
-        uploadedThumbPath = uploadPath;
-        nextThumbPath = uploadPath;
-      } catch {
-        toast.error("Could not upload thumbnail.");
+        uploadedPhotoPath = uploadPath;
+        nextPhotoPath = uploadPath;
+      } catch (uploadErr) {
+        const msg =
+          uploadErr instanceof Error
+            ? uploadErr.message
+            : "Could not upload organization profile photo. Deploy updated Storage rules (`organizations/.../profile`) if you see permission errors.";
+        toast.error(msg);
         return;
       }
     }
 
-    const thumbPayload: Record<string, unknown> = {};
-    if (removeThumbnail) {
-      thumbPayload.thumbnailStoragePath = deleteField();
-    } else if (selectedThumbnailFile && nextThumbPath) {
-      thumbPayload.thumbnailStoragePath = nextThumbPath;
+    let uploadedCardPath = "";
+    let nextCardPath: string | undefined = undefined;
+    if (removeCardThumbnail) {
+      nextCardPath = undefined;
+    } else if (selectedCardThumbnailFile) {
+      const cardErr = validateOrganizationCardThumbnailFile(selectedCardThumbnailFile);
+      if (cardErr) {
+        toast.error(cardErr);
+        return;
+      }
+      const cardUploadPath = buildOrganizationCardThumbnailPath(
+        organizationId,
+        selectedCardThumbnailFile.name,
+      );
+      try {
+        await uploadFile(cardUploadPath, selectedCardThumbnailFile, {
+          contentType: selectedCardThumbnailFile.type || "image/jpeg",
+        });
+        uploadedCardPath = cardUploadPath;
+        nextCardPath = cardUploadPath;
+      } catch (uploadErr) {
+        const msg =
+          uploadErr instanceof Error
+            ? uploadErr.message
+            : "Could not upload home card image. Deploy Storage rules for `organizations/.../thumbnail` if you see permission errors.";
+        toast.error(msg);
+        if (uploadedPhotoPath) {
+          void deleteFile(uploadedPhotoPath).catch(() => undefined);
+        }
+        return;
+      }
+    }
+
+    const photoPayload: Record<string, unknown> = {};
+    if (removeProfilePhoto) {
+      photoPayload.profilePhotoPath = deleteField();
+    } else if (selectedProfilePhotoFile && nextPhotoPath) {
+      photoPayload.profilePhotoPath = nextPhotoPath;
+    }
+
+    const cardPayload: Record<string, unknown> = {};
+    if (removeCardThumbnail) {
+      cardPayload.cardThumbnailPath = deleteField();
+    } else if (selectedCardThumbnailFile && nextCardPath) {
+      cardPayload.cardThumbnailPath = nextCardPath;
+    }
+
+    const legacyPayload: Record<string, unknown> = {};
+    if (hadLegacyThumbnailFirestoreField || removeCardThumbnail) {
+      legacyPayload.thumbnailStoragePath = deleteField();
     }
 
     setSaving(true);
@@ -227,18 +335,33 @@ export function AdminSettingsClient() {
         state: form.state.trim() || deleteField(),
         postalCode: form.postalCode.trim() || deleteField(),
         website: website || deleteField(),
-        ...thumbPayload,
+        ...photoPayload,
+        ...cardPayload,
+        ...legacyPayload,
         updatedAt: dateToTimestamp(new Date()),
       });
 
       if (
-        existingThumb &&
-        (removeThumbnail || (nextThumbPath && existingThumb !== nextThumbPath))
+        existingPhotoPath &&
+        (removeProfilePhoto ||
+          (nextPhotoPath && existingPhotoPath !== nextPhotoPath))
       ) {
-        void deleteFile(existingThumb).catch(() => undefined);
+        void deleteFile(existingPhotoPath).catch(() => undefined);
+      }
+      if (
+        existingCardPath &&
+        (removeCardThumbnail ||
+          (nextCardPath && existingCardPath !== nextCardPath))
+      ) {
+        void deleteFile(existingCardPath).catch(() => undefined);
       }
 
-      const nextThumbStored = removeThumbnail ? undefined : nextThumbPath ?? organization.thumbnailStoragePath;
+      const nextPhotoStored = removeProfilePhoto
+        ? undefined
+        : nextPhotoPath ?? getOrganizationProfilePhotoStoragePath(organization);
+      const nextCardStored = removeCardThumbnail
+        ? undefined
+        : nextCardPath ?? getOrganizationCardThumbnailStoragePath(orgWithLegacy);
       const nextOrganization: Organization = {
         ...organization,
         name,
@@ -248,19 +371,31 @@ export function AdminSettingsClient() {
         state: form.state.trim() || undefined,
         postalCode: form.postalCode.trim() || undefined,
         website: website || undefined,
-        thumbnailStoragePath: nextThumbStored,
+        profilePhotoPath: nextPhotoStored,
+        cardThumbnailPath: nextCardStored,
       };
       const nextForm = formFromOrganization(nextOrganization);
       setOrganization(nextOrganization);
       setInitialForm(nextForm);
       setForm(nextForm);
-      setInitialThumbnailPath(nextThumbStored?.trim() ?? "");
-      setSelectedThumbnailFile(null);
-      setRemoveThumbnail(false);
+      setInitialProfilePhotoPath(getOrganizationProfilePhotoStoragePath(nextOrganization) ?? "");
+      setInitialCardThumbnailPath(
+        getOrganizationCardThumbnailStoragePath(
+          nextOrganization as Organization & { thumbnailStoragePath?: string },
+        ) ?? "",
+      );
+      setSelectedProfilePhotoFile(null);
+      setRemoveProfilePhoto(false);
+      setSelectedCardThumbnailFile(null);
+      setRemoveCardThumbnail(false);
+      setHadLegacyThumbnailFirestoreField(false);
       toast.success("Organization updated.");
     } catch (err) {
-      if (uploadedThumbPath) {
-        void deleteFile(uploadedThumbPath).catch(() => undefined);
+      if (uploadedPhotoPath) {
+        void deleteFile(uploadedPhotoPath).catch(() => undefined);
+      }
+      if (uploadedCardPath) {
+        void deleteFile(uploadedCardPath).catch(() => undefined);
       }
       toast.error(err instanceof Error ? err.message : "Failed to update organization.");
     } finally {
@@ -268,18 +403,32 @@ export function AdminSettingsClient() {
     }
   }
 
-  function handleSelectThumbnail(file: File | null) {
+  function handleSelectCardThumbnail(file: File | null) {
     if (!file) {
-      setSelectedThumbnailFile(null);
+      setSelectedCardThumbnailFile(null);
       return;
     }
-    const err = validateOrganizationThumbnailFile(file);
+    const err = validateOrganizationCardThumbnailFile(file);
     if (err) {
       toast.error(err);
       return;
     }
-    setSelectedThumbnailFile(file);
-    setRemoveThumbnail(false);
+    setSelectedCardThumbnailFile(file);
+    setRemoveCardThumbnail(false);
+  }
+
+  function handleSelectProfilePhoto(file: File | null) {
+    if (!file) {
+      setSelectedProfilePhotoFile(null);
+      return;
+    }
+    const err = validateOrganizationProfilePhotoFile(file);
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    setSelectedProfilePhotoFile(file);
+    setRemoveProfilePhoto(false);
   }
 
   if (!organizationId) {
@@ -378,8 +527,10 @@ export function AdminSettingsClient() {
                 type="button"
                 onClick={() => {
                   if (initialForm) setForm(initialForm);
-                  setSelectedThumbnailFile(null);
-                  setRemoveThumbnail(false);
+                  setSelectedProfilePhotoFile(null);
+                  setRemoveProfilePhoto(false);
+                  setSelectedCardThumbnailFile(null);
+                  setRemoveCardThumbnail(false);
                 }}
                 disabled={!dirty || saving}
                 className={adminSecondaryBtnClass}
@@ -397,19 +548,54 @@ export function AdminSettingsClient() {
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2 flex flex-wrap items-end gap-4">
-              <OrganizationThumbnailField
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Logo
+              </label>
+              <div className="flex flex-wrap items-end gap-4">
+                <OrganizationProfilePhotoField
+                  organizationName={form.name.trim() || organization.name}
+                  currentPhotoUrl={!removeProfilePhoto ? profilePhotoResolvedUrl : undefined}
+                  selectedFile={selectedProfilePhotoFile}
+                  disabled={saving}
+                  onSelectFile={handleSelectProfilePhoto}
+                  onClearSelection={() => setSelectedProfilePhotoFile(null)}
+                  onRemoveCurrent={() => {
+                    setRemoveProfilePhoto(true);
+                    setSelectedProfilePhotoFile(null);
+                  }}
+                />
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Shown in the portal organization picker and admin header.
+              </p>
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Home card image
+              </label>
+              <OrganizationCardThumbnailField
                 organizationName={form.name.trim() || organization.name}
-                currentThumbnailUrl={!removeThumbnail ? thumbnailResolvedUrl : undefined}
-                selectedFile={selectedThumbnailFile}
+                currentImageUrl={!removeCardThumbnail ? cardThumbnailResolvedUrl : undefined}
+                currentStoragePath={
+                  !removeCardThumbnail
+                    ? getOrganizationCardThumbnailStoragePath(
+                        organization as Organization & { thumbnailStoragePath?: string },
+                      )
+                    : undefined
+                }
+                selectedFile={selectedCardThumbnailFile}
                 disabled={saving}
-                onSelectFile={handleSelectThumbnail}
-                onClearSelection={() => setSelectedThumbnailFile(null)}
+                onSelectFile={handleSelectCardThumbnail}
+                onClearSelection={() => setSelectedCardThumbnailFile(null)}
                 onRemoveCurrent={() => {
-                  setRemoveThumbnail(true);
-                  setSelectedThumbnailFile(null);
+                  setRemoveCardThumbnail(true);
+                  setSelectedCardThumbnailFile(null);
                 }}
               />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Wide image on your home organization cards and admin org tiles.
+              </p>
             </div>
             <div className="md:col-span-2">
               <label

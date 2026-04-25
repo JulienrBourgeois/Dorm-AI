@@ -1,5 +1,7 @@
 "use client";
 
+import { AppLogoMark } from "@/components/AppLogoMark";
+
 type PortalSidebarBrandProps = {
   /** When true, only the logo is shown (collapsed desktop sidebar). */
   collapsed: boolean;
@@ -24,9 +26,11 @@ export function PortalSidebarBrand({
       }`}
       aria-label="Reload page"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-        <span className="text-sm font-bold text-white">I</span>
-      </div>
+      <AppLogoMark
+        className="h-9 w-9"
+        wrapperClassName="rounded-xl shadow-md shadow-primary/15"
+        alt=""
+      />
       {showLabel ? (
         <span className="truncate text-sm font-semibold tracking-tight text-foreground">
           Inspect AI

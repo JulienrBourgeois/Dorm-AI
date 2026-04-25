@@ -18,7 +18,9 @@ import {
 } from "@/lib/portal/portalOrgNavigation";
 import type { Organization } from "@/types/dorm";
 import type { WithId } from "@/types";
-import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
+import { getDownloadUrl } from "@/app/lib/firebase/storage";
+import { OrganizationProfilePhoto } from "@/components/organization/OrganizationProfilePhoto";
+import { getOrganizationProfilePhotoStoragePath } from "@/lib/organization/organizationProfilePhotoPath";
 
 interface MembershipDoc {
   userId: string;
@@ -65,12 +67,40 @@ export function PortalOrgSelector({ portal }: Props) {
   const [orgAccess, setOrgAccess] = useState<OrgAccess[]>([]);
   const [membershipsLoading, setMembershipsLoading] = useState(true);
   const [resolvedName, setResolvedName] = useState<string | null>(null);
+  const [logoUrlByOrgId, setLogoUrlByOrgId] = useState<Record<string, string>>({});
   const rootRef = useRef<HTMLDivElement>(null);
 
   const portalEntries = useMemo(
     () => orgEntriesForPortal(orgAccess, portal),
     [orgAccess, portal],
   );
+
+  useEffect(() => {
+    if (portalEntries.length === 0) {
+      setLogoUrlByOrgId({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const out: Record<string, string> = {};
+      await Promise.all(
+        portalEntries.map(async (e) => {
+          const p = getOrganizationProfilePhotoStoragePath(e);
+          if (!p) return;
+          try {
+            const u = await getDownloadUrl(p);
+            out[e.id] = u;
+          } catch {
+            /* ignore */
+          }
+        }),
+      );
+      if (!cancelled) setLogoUrlByOrgId(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [portalEntries]);
 
   const searchKey = searchParams.toString();
   const onAdminLogin = pathname.startsWith("/admin/login");
@@ -217,9 +247,10 @@ export function PortalOrgSelector({ portal }: Props) {
         className="inline-flex max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1.5 pl-2 pr-1.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
       >
         {currentOrgEntry ? (
-          <OrganizationThumbnail
+          <OrganizationProfilePhoto
             name={currentOrgEntry.name}
-            thumbnailStoragePath={currentOrgEntry.thumbnailStoragePath}
+            profilePhotoPath={getOrganizationProfilePhotoStoragePath(currentOrgEntry)}
+            photoUrl={logoUrlByOrgId[currentOrgEntry.id]}
             variant="sm"
           />
         ) : null}
@@ -268,9 +299,10 @@ export function PortalOrgSelector({ portal }: Props) {
                     : "text-zinc-800 dark:text-zinc-100"
                 }`}
               >
-                <OrganizationThumbnail
+                <OrganizationProfilePhoto
                   name={label}
-                  thumbnailStoragePath={entry.thumbnailStoragePath}
+                  profilePhotoPath={getOrganizationProfilePhotoStoragePath(entry)}
+                  photoUrl={logoUrlByOrgId[entry.id]}
                   variant="sm"
                 />
                 <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">

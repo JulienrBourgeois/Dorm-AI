@@ -6,7 +6,10 @@ import { BackLink } from "@/components/auth/ui";
 import type { Organization } from "@/types/dorm";
 import { Loader } from "@/components/Loader";
 import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
-import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
+import { OrganizationCardThumbnail } from "@/components/organization/OrganizationCardThumbnail";
+import { OrganizationProfilePhoto } from "@/components/organization/OrganizationProfilePhoto";
+import { getOrganizationCardThumbnailStoragePath } from "@/lib/organization/organizationCardThumbnailPath";
+import { getOrganizationProfilePhotoStoragePath } from "@/lib/organization/organizationProfilePhotoPath";
 
 export function ManagerOrganizationDashboard({
   organizationId: id,
@@ -25,6 +28,9 @@ export function ManagerOrganizationDashboard({
     return <Loader fullPage />;
   }
 
+  const orgWithLegacy = organization as Organization & { thumbnailStoragePath?: string };
+  const cardBannerPath = getOrganizationCardThumbnailStoragePath(orgWithLegacy);
+
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
@@ -38,11 +44,19 @@ export function ManagerOrganizationDashboard({
       </header>
       <div className="border-b border-zinc-200 bg-white px-6 pb-6 dark:border-zinc-800 dark:bg-black lg:px-10">
         <div className="mx-auto max-w-5xl overflow-hidden rounded-xl">
-          <OrganizationThumbnail
-            name={organization.name}
-            thumbnailStoragePath={organization.thumbnailStoragePath}
-            variant="banner"
-          />
+          {cardBannerPath ? (
+            <OrganizationCardThumbnail
+              name={organization.name}
+              cardThumbnailPath={cardBannerPath}
+              className="rounded-xl"
+            />
+          ) : (
+            <OrganizationProfilePhoto
+              name={organization.name}
+              profilePhotoPath={getOrganizationProfilePhotoStoragePath(organization)}
+              variant="banner"
+            />
+          )}
         </div>
       </div>
       <main className="mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">

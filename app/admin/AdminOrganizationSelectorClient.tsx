@@ -8,7 +8,8 @@ import { subscribeToAuthState } from "@/app/lib/firebase/auth";
 import { COLLECTIONS, getDocumentData, queryCollection } from "@/app/lib/firebase/firestore";
 import type { Organization } from "@/types";
 import { formatOrganizationCardSubtitle } from "@/lib/organizationDisplay";
-import { OrganizationThumbnail } from "@/components/organization/OrganizationThumbnail";
+import { OrganizationCardThumbnail } from "@/components/organization/OrganizationCardThumbnail";
+import { getOrganizationCardThumbnailStoragePath } from "@/lib/organization/organizationCardThumbnailPath";
 
 type MembershipDoc = {
   userId?: string;
@@ -101,10 +102,11 @@ export function AdminOrganizationSelectorClient() {
           key={org.id}
           className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <OrganizationThumbnail
+          <OrganizationCardThumbnail
             name={org.name}
-            thumbnailStoragePath={org.thumbnailStoragePath}
-            variant="banner"
+            cardThumbnailPath={getOrganizationCardThumbnailStoragePath(
+              org as Organization & { thumbnailStoragePath?: string },
+            )}
             className="shrink-0 rounded-b-none rounded-t-2xl"
           />
           <div className="p-5">

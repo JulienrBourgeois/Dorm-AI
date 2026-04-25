@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppBrandReload } from "@/components/AppBrandReload";
+import { AppLogoMark } from "@/components/AppLogoMark";
 
 export const metadata: Metadata = {
   title: "Inspect AI — Smart property inspections",
@@ -61,9 +62,10 @@ export default function LandingPage() {
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center px-6 pt-12 pb-16 sm:pt-20 lg:pt-24">
         <div className="animate-fade-in-up-cascade flex w-full max-w-2xl flex-col items-center text-center">
-          <div className="mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-xl shadow-primary/20 sm:h-20 sm:w-20 lg:mb-8 lg:h-[5.25rem] lg:w-[5.25rem]">
-            <span className="text-2xl font-bold text-white sm:text-3xl lg:text-3xl">I</span>
-          </div>
+          <AppLogoMark
+            className="mb-6 h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20 lg:mb-8 lg:h-[5.25rem] lg:w-[5.25rem]"
+            wrapperClassName="rounded-3xl shadow-xl shadow-primary/20"
+          />
 
           <h1 className="text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-5xl">
             Property inspections,{" "}

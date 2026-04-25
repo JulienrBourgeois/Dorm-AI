@@ -1,5 +1,7 @@
 "use client";
 
+import { AppLogoMark } from "@/components/AppLogoMark";
+
 export function Loader({
   message,
   fullPage = false,
@@ -24,9 +26,11 @@ export function Loader({
           className="absolute inset-0 animate-spin rounded-full border-[3.5px] border-zinc-100 border-t-accent dark:border-zinc-800 dark:border-t-accent"
           aria-hidden
         />
-        <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary shadow-md shadow-primary/15">
-          <span className="text-lg font-bold text-white">I</span>
-        </div>
+        <AppLogoMark
+          className="z-10 h-12 w-12"
+          wrapperClassName="rounded-xl shadow-md shadow-primary/15"
+          alt=""
+        />
       </div>
       {message ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{message}</p>

@@ -29,22 +29,22 @@ const variantClass: Record<
   },
 };
 
-type OrganizationThumbnailProps = {
+type OrganizationProfilePhotoProps = {
   name: string;
-  thumbnailStoragePath?: string;
+  profilePhotoPath?: string;
   /** When set, skips Storage fetch (parent-resolved or object preview URL). */
-  thumbnailUrl?: string;
+  photoUrl?: string;
   variant: "sm" | "md" | "hero" | "banner";
   className?: string;
 };
 
-export function OrganizationThumbnail({
+export function OrganizationProfilePhoto({
   name,
-  thumbnailStoragePath,
-  thumbnailUrl: urlProp,
+  profilePhotoPath,
+  photoUrl: urlProp,
   variant,
   className,
-}: OrganizationThumbnailProps) {
+}: OrganizationProfilePhotoProps) {
   const [resolvedUrl, setResolvedUrl] = useState("");
   const [failed, setFailed] = useState(false);
   const v = variantClass[variant];
@@ -55,7 +55,7 @@ export function OrganizationThumbnail({
       setResolvedUrl(urlProp.trim());
       return;
     }
-    const path = thumbnailStoragePath?.trim();
+    const path = profilePhotoPath?.trim();
     if (!path) {
       setResolvedUrl("");
       return;
@@ -71,7 +71,7 @@ export function OrganizationThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [thumbnailStoragePath, urlProp]);
+  }, [profilePhotoPath, urlProp]);
 
   const showImg = Boolean(resolvedUrl) && !failed;
   const initial = name.trim().charAt(0).toUpperCase() || "?";

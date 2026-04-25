@@ -15,6 +15,11 @@ service firebase.storage {
       allow read, write: if signedIn();
     }
 
+    // Organization profile photos (cards / portals). Legacy uploads used /thumbnail/.
+    match /organizations/{organizationId}/profile/{allPaths=**} {
+      allow read, write: if signedIn();
+    }
+
     match /organizations/{organizationId}/thumbnail/{allPaths=**} {
       allow read, write: if signedIn();
     }

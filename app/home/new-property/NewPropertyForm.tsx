@@ -4,8 +4,17 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { collection, doc, where, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
+import { AppLogoMark } from "@/components/AppLogoMark";
 import { BackButton } from "@/components/auth/ui";
 import { auth, db } from "@/app/lib/firebase/app";
+import {
+  buildOrganizationCardThumbnailPath,
+  buildOrganizationProfilePhotoPath,
+  deleteFile,
+  uploadFile,
+  validateOrganizationCardThumbnailFile,
+  validateOrganizationProfilePhotoFile,
+} from "@/app/lib/firebase/storage";
 import {
   COLLECTIONS,
   addDocument,
@@ -14,6 +23,8 @@ import {
   setDocument,
   updateDocument,
 } from "@/app/lib/firebase/firestore";
+import { OrganizationCardThumbnailField } from "@/components/organization/OrganizationCardThumbnailField";
+import { OrganizationProfilePhotoField } from "@/components/organization/OrganizationProfilePhotoField";
 import type { OrganizationType } from "@/types/dorm";
 import { ORGANIZATION_TYPE_OPTIONS } from "@/lib/organizationDisplay";
 import { triggerOrganizationCreatedEmail } from "@/lib/email/triggerFromClient";
@@ -114,6 +125,8 @@ export function NewPropertyForm() {
   const [bulkUpload, setBulkUpload] = useState<BulkUploadData | null>(null);
   const [showBulkLearnMore, setShowBulkLearnMore] = useState(false);
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedProfilePhotoFile, setSelectedProfilePhotoFile] = useState<File | null>(null);
+  const [selectedCardThumbnailFile, setSelectedCardThumbnailFile] = useState<File | null>(null);
 
   async function onBulkSetupFile(file: File | null) {
     if (!file) {
@@ -298,6 +311,20 @@ export function NewPropertyForm() {
       toast.error("Please enter a valid website URL.");
       return;
     }
+    if (selectedProfilePhotoFile) {
+      const photoErr = validateOrganizationProfilePhotoFile(selectedProfilePhotoFile);
+      if (photoErr) {
+        toast.error(photoErr);
+        return;
+      }
+    }
+    if (selectedCardThumbnailFile) {
+      const cardErr = validateOrganizationCardThumbnailFile(selectedCardThumbnailFile);
+      if (cardErr) {
+        toast.error(cardErr);
+        return;
+      }
+    }
     const baseSlug = slugFromName(trimmedName) || "organization";
     const slugVal = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
     setSubmitting(true);
@@ -329,7 +356,53 @@ export function NewPropertyForm() {
         createdAt: now,
         updatedAt: now,
       });
-      toast.success("Organization created.");
+
+      let uploadedProfilePath: string | undefined;
+      let uploadedCardPath: string | undefined;
+      let imageUploadWarning: string | undefined;
+      try {
+        if (selectedProfilePhotoFile) {
+          const path = buildOrganizationProfilePhotoPath(
+            organizationId,
+            selectedProfilePhotoFile.name,
+          );
+          await uploadFile(path, selectedProfilePhotoFile, {
+            contentType: selectedProfilePhotoFile.type || "image/jpeg",
+          });
+          uploadedProfilePath = path;
+        }
+        if (selectedCardThumbnailFile) {
+          const path = buildOrganizationCardThumbnailPath(
+            organizationId,
+            selectedCardThumbnailFile.name,
+          );
+          await uploadFile(path, selectedCardThumbnailFile, {
+            contentType: selectedCardThumbnailFile.type || "image/jpeg",
+          });
+          uploadedCardPath = path;
+        }
+        if (uploadedProfilePath || uploadedCardPath) {
+          await updateDocument(COLLECTIONS.organizations, organizationId, {
+            ...(uploadedProfilePath ? { profilePhotoPath: uploadedProfilePath } : {}),
+            ...(uploadedCardPath ? { cardThumbnailPath: uploadedCardPath } : {}),
+            updatedAt: dateToTimestamp(new Date()),
+          });
+        }
+      } catch (imgErr) {
+        if (uploadedProfilePath) {
+          void deleteFile(uploadedProfilePath).catch(() => undefined);
+        }
+        if (uploadedCardPath) {
+          void deleteFile(uploadedCardPath).catch(() => undefined);
+        }
+        const detail =
+          imgErr instanceof Error ? imgErr.message : "Could not upload organization images.";
+        imageUploadWarning = `${detail} Add images anytime in Admin → Settings.`;
+      }
+
+      toast.success("Organization created.", {
+        description: imageUploadWarning,
+      });
       if (user) {
         void triggerOrganizationCreatedEmail(user, organizationId).catch(() => {});
       }
@@ -356,9 +429,10 @@ export function NewPropertyForm() {
         aria-label="Back to home"
       />
 
-      <div className="mb-8 mt-2 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-secondary shadow-xl shadow-primary/20 lg:mb-10 lg:h-24 lg:w-24">
-        <span className="text-3xl font-bold text-white lg:text-4xl">I</span>
-      </div>
+      <AppLogoMark
+        className="mb-8 mt-2 h-20 w-20 lg:mb-10 lg:h-24 lg:w-24"
+        wrapperClassName="rounded-3xl shadow-xl shadow-primary/20"
+      />
 
       <h1 className="text-4xl font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl">
         Create an{" "}
@@ -389,6 +463,65 @@ export function NewPropertyForm() {
             disabled={submitting}
             autoComplete="organization"
           />
+        </div>
+
+        <div
+          className="flex flex-col gap-5 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-700 dark:bg-zinc-900/35"
+          role="group"
+          aria-label="Organization branding, optional"
+        >
+          <p className={groupTitleClass}>Branding (optional)</p>
+
+          <div>
+            <p className={labelClass}>Logo</p>
+            <p className="mb-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Square image for the portal organization picker and admin header.
+            </p>
+            <OrganizationProfilePhotoField
+              organizationName={name.trim() || "Organization"}
+              selectedFile={selectedProfilePhotoFile}
+              disabled={submitting}
+              onSelectFile={(file) => {
+                if (!file) {
+                  setSelectedProfilePhotoFile(null);
+                  return;
+                }
+                const err = validateOrganizationProfilePhotoFile(file);
+                if (err) {
+                  toast.error(err);
+                  return;
+                }
+                setSelectedProfilePhotoFile(file);
+              }}
+              onClearSelection={() => setSelectedProfilePhotoFile(null)}
+            />
+          </div>
+
+          <div>
+            <p className={labelClass}>Home card image</p>
+            <p className="mb-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Wide banner for home organization cards and admin tiles.
+            </p>
+            <OrganizationCardThumbnailField
+              organizationName={name.trim() || "Organization"}
+              selectedFile={selectedCardThumbnailFile}
+              disabled={submitting}
+              onSelectFile={(file) => {
+                if (!file) {
+                  setSelectedCardThumbnailFile(null);
+                  return;
+                }
+                const err = validateOrganizationCardThumbnailFile(file);
+                if (err) {
+                  toast.error(err);
+                  return;
+                }
+                setSelectedCardThumbnailFile(file);
+              }}
+              onClearSelection={() => setSelectedCardThumbnailFile(null)}
+              selectedFileHint="Will upload when you create the organization"
+            />
+          </div>
         </div>
 
         <div>
