@@ -26,7 +26,6 @@ export function useAuthAccountProfile(): { displayName: string; email: string; p
         }
         return;
       }
-<<<<<<< HEAD
       try {
         if (!cancelled) setEmail(user.email ?? "");
         const { data } = await getDocumentData<UserDoc>(COLLECTIONS.users, user.uid);

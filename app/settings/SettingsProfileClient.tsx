@@ -66,7 +66,6 @@ export function SettingsProfileClient() {
         }
         return;
       }
-<<<<<<< HEAD
       try {
         if (!cancelled) setEmail(user.email ?? "");
         const { data } = await getDocumentData<User>(COLLECTIONS.users, user.uid);

@@ -56,12 +56,10 @@ export function HomeDashboard() {
         router.replace("/signup");
         return;
       }
-<<<<<<< HEAD
       try {
         const { data: userData } = await getDocumentData<UserDocData>(
           COLLECTIONS.users,
           user.uid
->>>>>>> 268857a (bug fixes)
         );
         if (cancelled) return;
         if (!userData?.dateOfBirth) {
