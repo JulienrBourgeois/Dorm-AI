@@ -28,12 +28,14 @@ export function AdminOrganizationSelectorClient() {
   const [legacyAdminMemberships, setLegacyAdminMemberships] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const unsubscribe = subscribeToAuthState(async (user) => {
       if (!user) {
         router.replace("/admin/login");
         return;
       }
 
+      if (cancelled) return;
       setLoading(true);
       setError(null);
       try {
@@ -68,15 +70,21 @@ export function AdminOrganizationSelectorClient() {
         }
 
         results.sort((a, b) => a.name.localeCompare(b.name));
+        if (cancelled) return;
         setOrganizations(results);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unable to load organizations.");
       } finally {
+        if (cancelled) return;
         setLoading(false);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [router]);
 
   if (loading) {

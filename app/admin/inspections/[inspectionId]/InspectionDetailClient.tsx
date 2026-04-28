@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { BackLink } from "@/components/auth/ui";
 import {
-  adminCardClass,
   adminInputClass,
   adminPageDescClass,
   adminPageSectionClass,
@@ -27,6 +27,7 @@ import type {
   Inspection,
   InspectionStatus,
   InspectionSummaryStatus,
+  InspectionItem,
   Media,
   Room,
   User,
@@ -80,6 +81,15 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
   const [mediaItems, setMediaItems] = useState<Array<{ id: string; storagePath: string; downloadUrl: string; uploadedBy: string }>>([]);
   const [summaryDraft, setSummaryDraft] = useState("");
   const [summarySaving, setSummarySaving] = useState(false);
+  const [itemRows, setItemRows] = useState<Array<{ id: string; data: InspectionItem }>>([]);
+  const sharedInspectionNote =
+    itemRows.find((item) => Boolean(item.data.notes && item.data.notes.trim()))?.data.notes?.trim() || "";
+  const groupedItems = itemRows.reduce<Record<string, Array<{ id: string; data: InspectionItem }>>>((acc, item) => {
+    if (!acc[item.data.section]) acc[item.data.section] = [];
+    acc[item.data.section].push(item);
+    return acc;
+  }, {});
+  const groupedSections = Object.entries(groupedItems);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -114,9 +124,31 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
         const { data: tenantDoc } = await getDocumentData<User>(COLLECTIONS.users, tenantId);
         if (tenantDoc?.name) names.push(tenantDoc.name);
       }
-      setTenantNames(names);
 
-      const mediaSnap = await queryCollection(COLLECTIONS.media, where("inspectionId", "==", inspectionId));
+      // Fallback for older/stale inspections where tenantIds may be missing:
+      // derive tenant names from active room memberships.
+      if (names.length === 0 && data.roomId) {
+        const tenantMembershipSnap = await queryCollection(
+          COLLECTIONS.memberships,
+          where("organizationId", "==", data.organizationId),
+          where("role", "==", "TENANT"),
+          where("status", "==", "ACTIVE"),
+          where("roomId", "==", data.roomId),
+        );
+        for (const doc of tenantMembershipSnap.docs) {
+          const membership = doc.data() as { userId?: string };
+          const tenantId = membership.userId?.trim();
+          if (!tenantId) continue;
+          const { data: tenantDoc } = await getDocumentData<User>(COLLECTIONS.users, tenantId);
+          if (tenantDoc?.name) names.push(tenantDoc.name);
+        }
+      }
+      setTenantNames([...new Set(names)]);
+
+      const [mediaSnap, itemsSnap] = await Promise.all([
+        queryCollection(COLLECTIONS.media, where("inspectionId", "==", inspectionId)),
+        queryCollection(COLLECTIONS.inspectionItems, where("inspectionId", "==", inspectionId)),
+      ]);
       const resolvedMedia: Array<{ id: string; storagePath: string; downloadUrl: string; uploadedBy: string }> = [];
       for (const doc of mediaSnap.docs) {
         const media = doc.data() as Media;
@@ -139,6 +171,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
         }
       }
       setMediaItems(resolvedMedia);
+      setItemRows(itemsSnap.docs.map((doc) => ({ id: doc.id, data: doc.data() as InspectionItem })));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load inspection detail.");
     } finally {
@@ -233,7 +266,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           ? "Draft summary generated."
           : action === "review"
             ? "Draft summary saved for review."
-            : "Summary finalized for tenant visibility.",
+            : "Summary finalized.",
       );
       await refresh();
     } catch (err) {
@@ -245,7 +278,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
 
   if (!inspection && !loading) {
     return (
-      <div className={`${adminCardClass} text-sm text-zinc-600 dark:text-zinc-300`}>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-black dark:text-zinc-300">
         Inspection not found.
       </div>
     );
@@ -270,10 +303,10 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className={adminCardClass}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Context</div>
-          <div className="mt-3 space-y-3 text-sm">
+          <div className="mt-3 grid gap-3 text-sm md:grid-cols-5">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Room</div>
               <div className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{roomNumber}</div>
@@ -297,7 +330,7 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           </div>
         </div>
 
-        <div className={`lg:col-span-2 ${adminCardClass}`}>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Lifecycle Actions</div>
           <div className="mt-4 flex flex-wrap gap-2">
             {(inspection ? ALLOWED_TRANSITIONS[inspection.status] : []).map((next) => (
@@ -356,29 +389,70 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
           </div>
 
           <div className="mt-6">
-            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Media evidence</div>
-            <div className="mt-3 space-y-2">
-              {mediaItems.map((media) => (
-                <div
-                  key={media.id}
-                  className="flex flex-col gap-2 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-zinc-900 dark:text-zinc-100">{media.storagePath}</div>
-                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Uploaded by: {media.uploadedBy}</div>
+            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Checklist findings</div>
+            <div className="mt-3 space-y-4">
+              {groupedSections.map(([section, sectionItems]) => (
+                <div key={section} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                  <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+                    {section.replace(/_/g, " ")}
                   </div>
-                  {media.downloadUrl ? (
-                    <a
-                      href={media.downloadUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={adminSecondaryBtnClass}
-                    >
-                      Open media
-                    </a>
-                  ) : (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">URL unavailable</span>
-                  )}
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {sectionItems.map((item) => (
+                      <div key={item.id} className="grid gap-2 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
+                        <div className="text-sm text-zinc-700 dark:text-zinc-200">{item.data.prompt}</div>
+                        <span className="w-fit rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                          {item.data.response}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {itemRows.length === 0 && (
+                <div className="rounded-xl border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                  No checklist items submitted yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Inspector notes</div>
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+              {sharedInspectionNote || "No inspector notes were provided for this inspection."}
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Media evidence</div>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {mediaItems.map((media) => (
+                <div key={media.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+                  <a
+                    href={media.downloadUrl || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                    title={media.downloadUrl ? "Open full-size image" : "URL unavailable"}
+                  >
+                    <div className="relative h-52 w-full overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                      {media.downloadUrl ? (
+                        <Image
+                          src={media.downloadUrl}
+                          alt="Inspection media"
+                          fill
+                          sizes="(max-width: 768px) 90vw, 420px"
+                          className="object-contain"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-zinc-500 dark:text-zinc-400">
+                          URL unavailable
+                        </div>
+                      )}
+                    </div>
+                  </a>
+                  <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">By: {media.uploadedBy}</div>
                 </div>
               ))}
               {mediaItems.length === 0 && (
@@ -427,11 +501,11 @@ export function InspectionDetailClient({ inspectionId }: { inspectionId: string 
                 disabled={summarySaving || !summaryDraft.trim()}
                 className={adminPrimaryBtnCompactClass}
               >
-                Finalize for tenant
+                Finalize summary
               </button>
             </div>
             {inspection?.aiSummary ? (
-              <div className="mt-3 rounded-xl border-2 border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-200">
+              <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Final summary
                 </div>

@@ -118,8 +118,28 @@ export function TenantInspectionsClient() {
         setRoomLabel("—");
       }
 
+      // Primary visibility path: explicit tenant assignment on inspection.
+      const inspectionDocsById = new Map(inspectionSnap.docs.map((doc) => [doc.id, doc]));
+
+      // Fallback visibility path: tenant has active room membership but tenantIds is stale/missing.
+      if (activeMembership?.roomId) {
+        try {
+          const roomScopedSnap = await queryCollection(
+            COLLECTIONS.inspections,
+            where("organizationId", "==", activeMembership.organizationId),
+            where("roomId", "==", activeMembership.roomId),
+          );
+          for (const doc of roomScopedSnap.docs) {
+            inspectionDocsById.set(doc.id, doc);
+          }
+        } catch {
+          // If backend rules are not yet deployed for room-based fallback reads, continue
+          // with explicit tenantIds visibility so the page still works.
+        }
+      }
+
       const rows: InspectionRow[] = [];
-      for (const doc of inspectionSnap.docs) {
+      for (const doc of inspectionDocsById.values()) {
         const inspection = doc.data() as Inspection;
         const [roomDoc, inspectorDoc] = await Promise.all([
           getDocumentData<Room>(COLLECTIONS.rooms, inspection.roomId),

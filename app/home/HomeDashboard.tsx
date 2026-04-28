@@ -50,57 +50,71 @@ export function HomeDashboard() {
   const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const unsubscribe = subscribeToAuthState(async (user) => {
       if (!user) {
         router.replace("/signup");
         return;
       }
-      const { data: userData } = await getDocumentData<UserDocData>(
-        COLLECTIONS.users,
-        user.uid
-      );
-      if (!userData?.dateOfBirth) {
-        router.replace("/setup-funnel");
-        return;
-      }
-      setUserName(userData.name ?? "there");
-      setUserEmail(user.email ?? "");
-      const profilePath = userData.profilePhotoPath?.trim();
-      if (profilePath) {
-        try {
-          const url = await getDownloadUrl(profilePath);
-          setUserPhotoUrl(url);
-        } catch {
-          setUserPhotoUrl("");
-        }
-      } else {
-        setUserPhotoUrl("");
-      }
-
-      const snapshot = await queryCollection(
-        COLLECTIONS.memberships,
-        where("userId", "==", user.uid),
-        where("status", "==", "ACTIVE"),
-      );
-      const list: OrgAccess[] = [];
-      for (const d of snapshot.docs) {
-        const m = d.data() as MembershipDoc;
-        const { data: org } = await getDocumentData<Organization>(
-          COLLECTIONS.organizations,
-          m.organizationId
+<<<<<<< HEAD
+      try {
+        const { data: userData } = await getDocumentData<UserDocData>(
+          COLLECTIONS.users,
+          user.uid
+>>>>>>> 268857a (bug fixes)
         );
-        if (org) {
-          list.push({
-            ...org,
-            id: m.organizationId,
-            membershipRole: m.role,
-          });
+        if (cancelled) return;
+        if (!userData?.dateOfBirth) {
+          router.replace("/setup-funnel");
+          return;
         }
+        setUserName(userData.name ?? "there");
+        setUserEmail(user.email ?? "");
+        const profilePath = userData.profilePhotoPath?.trim();
+        if (profilePath) {
+          try {
+            const url = await getDownloadUrl(profilePath);
+            if (!cancelled) setUserPhotoUrl(url);
+          } catch {
+            if (!cancelled) setUserPhotoUrl("");
+          }
+        } else {
+          if (!cancelled) setUserPhotoUrl("");
+        }
+
+        const snapshot = await queryCollection(
+          COLLECTIONS.memberships,
+          where("userId", "==", user.uid),
+          where("status", "==", "ACTIVE"),
+        );
+        if (cancelled) return;
+        const list: OrgAccess[] = [];
+        for (const d of snapshot.docs) {
+          const m = d.data() as MembershipDoc;
+          const { data: org } = await getDocumentData<Organization>(
+            COLLECTIONS.organizations,
+            m.organizationId
+          );
+          if (org) {
+            list.push({
+              ...org,
+              id: m.organizationId,
+              membershipRole: m.role,
+            });
+          }
+        }
+        if (cancelled) return;
+        setOrgAccess(list);
+        setGuardReady(true);
+      } catch {
+        // During sign-out/navigation, in-flight Firestore reads may reject with permissions.
+        // Swallow and let route guards handle navigation.
       }
-      setOrgAccess(list);
-      setGuardReady(true);
     });
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [router]);
 
   async function handleJoinWithCode(e: React.FormEvent) {

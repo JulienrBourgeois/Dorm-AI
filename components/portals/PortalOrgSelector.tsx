@@ -106,42 +106,54 @@ export function PortalOrgSelector({ portal }: Props) {
   const onAdminLogin = pathname.startsWith("/admin/login");
 
   useEffect(() => {
+    let cancelled = false;
     const unsub = subscribeToAuthState(async (user) => {
       if (!user) {
-        setOrgAccess([]);
-        setMembershipsLoading(false);
+        if (!cancelled) {
+          setOrgAccess([]);
+          setMembershipsLoading(false);
+        }
         return;
       }
-      setMembershipsLoading(true);
-      const snapshot = await queryCollection(
-        COLLECTIONS.memberships,
-        where("userId", "==", user.uid),
-        where("status", "==", "ACTIVE"),
-      );
-      const list: OrgAccess[] = [];
-      for (const d of snapshot.docs) {
-        const m = d.data() as MembershipDoc;
-        const { data: org } = await getDocumentData<Organization>(
-          COLLECTIONS.organizations,
-          m.organizationId,
+      if (!cancelled) setMembershipsLoading(true);
+      try {
+        const snapshot = await queryCollection(
+          COLLECTIONS.memberships,
+          where("userId", "==", user.uid),
+          where("status", "==", "ACTIVE"),
         );
-        if (org) {
-          list.push({
-            ...org,
-            id: m.organizationId,
-            membershipRole: m.role,
-          });
+        const list: OrgAccess[] = [];
+        for (const d of snapshot.docs) {
+          const m = d.data() as MembershipDoc;
+          const { data: org } = await getDocumentData<Organization>(
+            COLLECTIONS.organizations,
+            m.organizationId,
+          );
+          if (org) {
+            list.push({
+              ...org,
+              id: m.organizationId,
+              membershipRole: m.role,
+            });
+          }
         }
+        list.sort((a, b) =>
+          (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
+            sensitivity: "base",
+          }),
+        );
+        if (cancelled) return;
+        setOrgAccess(list);
+      } catch {
+        // Sign-out/navigation races can reject reads; keep selector quiet.
+      } finally {
+        if (!cancelled) setMembershipsLoading(false);
       }
-      list.sort((a, b) =>
-        (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
-          sensitivity: "base",
-        }),
-      );
-      setOrgAccess(list);
-      setMembershipsLoading(false);
     });
-    return unsub;
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
@@ -156,11 +168,15 @@ export function PortalOrgSelector({ portal }: Props) {
     }
     let cancelled = false;
     (async () => {
-      const { data } = await getDocumentData<Organization>(
-        COLLECTIONS.organizations,
-        organizationId,
-      );
-      if (!cancelled) setResolvedName(data?.name?.trim() || null);
+      try {
+        const { data } = await getDocumentData<Organization>(
+          COLLECTIONS.organizations,
+          organizationId,
+        );
+        if (!cancelled) setResolvedName(data?.name?.trim() || null);
+      } catch {
+        if (!cancelled) setResolvedName(null);
+      }
     })();
     return () => {
       cancelled = true;

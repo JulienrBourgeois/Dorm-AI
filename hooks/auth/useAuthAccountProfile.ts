@@ -26,22 +26,27 @@ export function useAuthAccountProfile(): { displayName: string; email: string; p
         }
         return;
       }
-      if (!cancelled) setEmail(user.email ?? "");
-      const { data } = await getDocumentData<UserDoc>(COLLECTIONS.users, user.uid);
-      if (cancelled) return;
-      const fromDoc = data?.name?.trim();
-      const fromAuth = user.displayName?.trim();
-      setDisplayName(fromDoc || fromAuth || "");
-      const photoPath = data?.profilePhotoPath?.trim();
-      if (!photoPath) {
-        setPhotoUrl("");
-        return;
-      }
+<<<<<<< HEAD
       try {
-        const url = await getDownloadUrl(photoPath);
-        if (!cancelled) setPhotoUrl(url);
+        if (!cancelled) setEmail(user.email ?? "");
+        const { data } = await getDocumentData<UserDoc>(COLLECTIONS.users, user.uid);
+        if (cancelled) return;
+        const fromDoc = data?.name?.trim();
+        const fromAuth = user.displayName?.trim();
+        setDisplayName(fromDoc || fromAuth || "");
+        const photoPath = data?.profilePhotoPath?.trim();
+        if (!photoPath) {
+          if (!cancelled) setPhotoUrl("");
+          return;
+        }
+        try {
+          const url = await getDownloadUrl(photoPath);
+          if (!cancelled) setPhotoUrl(url);
+        } catch {
+          if (!cancelled) setPhotoUrl("");
+        }
       } catch {
-        if (!cancelled) setPhotoUrl("");
+        // Ignore transient auth-transition read failures during logout.
       }
     });
     return () => {

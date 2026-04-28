@@ -66,29 +66,34 @@ export function SettingsProfileClient() {
         }
         return;
       }
-      if (!cancelled) setEmail(user.email ?? "");
-      const { data } = await getDocumentData<User>(COLLECTIONS.users, user.uid);
-      if (cancelled) return;
-      const n =
-        data?.name?.trim() || user.displayName?.trim() || "";
-      const p = data?.phone ? e164ToUsPhoneInput(data.phone) : "";
-      const photoPath = data?.profilePhotoPath?.trim() || "";
-      setName(n);
-      setPhone(p);
-      setInitialName(n);
-      setInitialPhone(p);
-      setProfilePhotoPath(photoPath);
-      if (photoPath) {
-        try {
-          const url = await getDownloadUrl(photoPath);
-          setProfilePhotoUrl(url);
-        } catch {
-          setProfilePhotoUrl("");
+<<<<<<< HEAD
+      try {
+        if (!cancelled) setEmail(user.email ?? "");
+        const { data } = await getDocumentData<User>(COLLECTIONS.users, user.uid);
+        if (cancelled) return;
+        const n =
+          data?.name?.trim() || user.displayName?.trim() || "";
+        const p = data?.phone ? e164ToUsPhoneInput(data.phone) : "";
+        const photoPath = data?.profilePhotoPath?.trim() || "";
+        setName(n);
+        setPhone(p);
+        setInitialName(n);
+        setInitialPhone(p);
+        setProfilePhotoPath(photoPath);
+        if (photoPath) {
+          try {
+            const url = await getDownloadUrl(photoPath);
+            if (!cancelled) setProfilePhotoUrl(url);
+          } catch {
+            if (!cancelled) setProfilePhotoUrl("");
+          }
+        } else {
+          if (!cancelled) setProfilePhotoUrl("");
         }
-      } else {
-        setProfilePhotoUrl("");
+        setLoadState("ready");
+      } catch {
+        // Sign-out can race in-flight profile reads; avoid runtime noise during navigation.
       }
-      setLoadState("ready");
     });
     return () => {
       cancelled = true;

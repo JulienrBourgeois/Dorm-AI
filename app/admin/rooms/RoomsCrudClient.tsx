@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { where } from "firebase/firestore";
+import { deleteField, where } from "firebase/firestore";
 import { toast } from "sonner";
 import {
   COLLECTIONS,
@@ -210,7 +210,7 @@ export function RoomsCrudClient() {
       await updateDocument(COLLECTIONS.rooms, editingId, {
         buildingId,
         number,
-        floor: floorRaw ? Number(floorRaw) : null,
+        ...(floorRaw ? { floor: Number(floorRaw) } : { floor: deleteField() }),
         capacity,
         updatedAt: dateToTimestamp(new Date()),
       });

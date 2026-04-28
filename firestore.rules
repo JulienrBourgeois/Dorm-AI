@@ -20,10 +20,17 @@ service cloud.firestore {
         get(/databases/$(database)/documents/memberships/$(membershipId(organizationId))).data.role == "ADMIN";
     }
 
+    function activeTenantForRoom(organizationId, roomId) {
+      return activeMembership(organizationId) &&
+        get(/databases/$(database)/documents/memberships/$(membershipId(organizationId))).data.role == "TENANT" &&
+        get(/databases/$(database)/documents/memberships/$(membershipId(organizationId))).data.roomId == roomId;
+    }
+
     function isInspectionViewer(data) {
       return activeAdmin(data.organizationId) ||
         (signedIn() && data.inspectorId == request.auth.uid) ||
-        (signedIn() && data.tenantIds is list && data.tenantIds.hasAny([request.auth.uid]));
+        (signedIn() && data.tenantIds is list && data.tenantIds.hasAny([request.auth.uid])) ||
+        (signedIn() && activeTenantForRoom(data.organizationId, data.roomId));
     }
 
     match /users/{userId} {

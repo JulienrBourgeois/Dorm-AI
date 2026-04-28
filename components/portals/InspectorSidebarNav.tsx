@@ -71,6 +71,7 @@ const ITEMS: Array<{ view: string; label: string; icon: React.ComponentType<{ cl
 
 function queueTabActive(viewParam: string | null, executionActive: boolean): boolean {
   const v = viewParam || "queue";
+  if (v === "review") return false;
   if (v === "execution" || executionActive) return true;
   return v === "queue" || !viewParam;
 }

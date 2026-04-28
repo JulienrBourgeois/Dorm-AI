@@ -14,14 +14,15 @@ function DetailFallback() {
   );
 }
 
-export default function TenantInspectionDetailPage({
+export default async function TenantInspectionDetailPage({
   params,
 }: {
-  params: { inspectionId: string };
+  params: Promise<{ inspectionId: string }>;
 }) {
+  const { inspectionId } = await params;
   return (
     <Suspense fallback={<DetailFallback />}>
-      <TenantInspectionDetailClient inspectionId={params.inspectionId} />
+      <TenantInspectionDetailClient inspectionId={inspectionId} />
     </Suspense>
   );
 }

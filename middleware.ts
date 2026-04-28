@@ -91,10 +91,20 @@ export async function middleware(request: NextRequest) {
     if (!target) {
       return NextResponse.redirect(new URL("/home/dashboard", origin));
     }
-    if (pathname.startsWith("/tenant") && target !== "/tenant") {
+    // Allow any resolved tenant sub-route (e.g. /tenant/inspections/:id) without bouncing.
+    if (
+      pathname.startsWith("/tenant") &&
+      target !== pathname &&
+      !(target === "/tenant" || target.startsWith("/tenant/"))
+    ) {
       return NextResponse.redirect(new URL(target, origin));
     }
-    if (pathname.startsWith("/inspector") && target !== "/inspector") {
+    // Allow any resolved inspector sub-route.
+    if (
+      pathname.startsWith("/inspector") &&
+      target !== pathname &&
+      !(target === "/inspector" || target.startsWith("/inspector/"))
+    ) {
       return NextResponse.redirect(new URL(target, origin));
     }
     return NextResponse.next();
