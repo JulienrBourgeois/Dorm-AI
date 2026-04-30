@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { where } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -175,7 +175,6 @@ export function InspectorExecutionClient() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string>("");
-  const [inspectorName, setInspectorName] = useState<string>("");
   const [inspections, setInspections] = useState<InspectionRecord[]>([]);
   const [activeInspectionId, setActiveInspectionId] = useState<string | null>(null);
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("edit");
@@ -185,6 +184,7 @@ export function InspectorExecutionClient() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [existingMediaRows, setExistingMediaRows] = useState<Array<{ id: string; downloadUrl: string; createdAt?: unknown }>>([]);
   const [lastReviewMessage, setLastReviewMessage] = useState("");
+  const pendingExecutionTransitionRef = useRef(false);
 
   const activeInspection = useMemo(
     () => inspections.find((i) => i.id === activeInspectionId) ?? null,
@@ -234,9 +234,6 @@ export function InspectorExecutionClient() {
           inspectionQuery,
           getDocumentData<User>(COLLECTIONS.users, uid),
         ]);
-
-        setInspectorName(userDoc.data?.name || "Inspector");
-
         const rows: InspectionRecord[] = [];
         for (const doc of inspectionSnap.docs) {
           const inspection = doc.data() as Inspection;
@@ -259,7 +256,7 @@ export function InspectorExecutionClient() {
     [],
   );
 
-  function replaceInspectorUrl(nextView: "queue" | "review") {
+  function replaceInspectorUrl(nextView: RunnerView) {
     router.replace(inspectorPortalHref(organizationId, nextView), { scroll: false });
   }
 
@@ -313,6 +310,7 @@ export function InspectorExecutionClient() {
       return;
     }
     if (raw === "review") {
+      pendingExecutionTransitionRef.current = false;
       if (activeInspectionId && executionMode === "view") {
         setView("execution");
         return;
@@ -321,8 +319,18 @@ export function InspectorExecutionClient() {
       setActiveInspectionId(null);
       return;
     }
+    if (raw === "execution") {
+      pendingExecutionTransitionRef.current = false;
+      setView("execution");
+      return;
+    }
     setView((prev) => (prev === "execution" ? prev : "queue"));
     if (raw === "queue" || raw === null) {
+      if (pendingExecutionTransitionRef.current) {
+        setView("execution");
+        return;
+      }
+      pendingExecutionTransitionRef.current = false;
       setActiveInspectionId(null);
     }
   }, [activeInspectionId, executionMode, organizationId, router, searchParams]);
@@ -353,6 +361,9 @@ export function InspectorExecutionClient() {
       setActiveSectionIdx(0);
       if (mode === "view") {
         replaceInspectorUrl("review");
+      } else {
+        pendingExecutionTransitionRef.current = true;
+        replaceInspectorUrl("execution");
       }
       setView("execution");
       await hydrateRunnerFromInspectionItems(inspection.id);
